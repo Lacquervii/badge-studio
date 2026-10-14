@@ -4,8 +4,8 @@ import { buildBadgeSvg, escapeXml, textColorFor } from '../src/core/svg.ts';
 import type { Measure, StyleDef } from '../src/core/types.ts';
 
 const measure: Measure = (t) => t.length * 7;
-const yellow: StyleDef = { id: 's001', name: '黄', leftBg: '#555555', rightBg: '#ffd400' };
-const blue: StyleDef = { id: 's004', name: '蓝', leftBg: '#555555', rightBg: '#007ec6' };
+const yellow: StyleDef = { id: 's001', name: '黄', leftBg: '#555555', rightBg: '#ffd400', leftTextColor: '', rightTextColor: '' };
+const blue: StyleDef = { id: 's004', name: '蓝', leftBg: '#555555', rightBg: '#007ec6', leftTextColor: '', rightTextColor: '' };
 
 test('两段式：宽度=左(字宽+14)+右(字宽+14)，两个矩形', () => {
   const svg = buildBadgeSvg({ leftText: 'DOCS', rightText: 'MIT' }, yellow, measure);
@@ -52,4 +52,17 @@ test('XML 转义', () => {
 test('三位 hex 与缩写处理', () => {
   assert.equal(textColorFor('#fff'), '#000000');
   assert.equal(textColorFor('#000'), '#ffffff');
+});
+
+test('自定义文字色优先于自动黑白', () => {
+  const style: StyleDef = { id: 's009', name: '自定义', leftBg: '#555555', rightBg: '#ffd400', leftTextColor: '#123456', rightTextColor: '#abcdef' };
+  const svg = buildBadgeSvg({ leftText: 'a', rightText: 'b' }, style, measure);
+  assert.match(svg, /fill="#123456" textLength/);
+  assert.match(svg, /fill="#abcdef" textLength/);
+});
+
+test('文字色为空时回退自动黑白', () => {
+  const svg = buildBadgeSvg({ leftText: 'a', rightText: 'b' }, yellow, measure);
+  assert.match(svg, /fill="#ffffff" textLength/);
+  assert.match(svg, /fill="#000000" textLength/);
 });

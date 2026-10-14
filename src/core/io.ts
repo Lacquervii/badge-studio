@@ -22,6 +22,10 @@ function isHexColor(v: unknown): v is string {
   return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
+function importTextColor(v: unknown): string {
+  return isHexColor(v) ? v : '';
+}
+
 function fail(error: string): ImportResult {
   return { stylesAdded: 0, badgesAdded: 0, skipped: 0, error };
 }
@@ -45,7 +49,14 @@ export function mergeImport(settings: BadgeSettings, raw: unknown): ImportResult
       continue;
     }
     const id = nextNumericId(settings.styles.map((x) => x.id), true);
-    const style: StyleDef = { id, name: cand.name.trim(), leftBg: cand.leftBg, rightBg: cand.rightBg };
+    const style: StyleDef = {
+      id,
+      name: cand.name.trim(),
+      leftBg: cand.leftBg,
+      rightBg: cand.rightBg,
+      leftTextColor: importTextColor(cand.leftTextColor),
+      rightTextColor: importTextColor(cand.rightTextColor),
+    };
     settings.styles.push(style);
     if (oldId !== '') styleIdMap.set(oldId, id);
     stylesAdded++;

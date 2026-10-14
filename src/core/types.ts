@@ -3,6 +3,8 @@ export interface StyleDef {
   name: string;
   leftBg: string;
   rightBg: string;
+  leftTextColor: string;
+  rightTextColor: string;
 }
 
 export interface BadgeDef {
@@ -31,4 +33,6 @@ export interface ChipSpec {
   rightText: string;
   leftBg: string;
   rightBg: string;
+  leftTextColor: string;
+  rightTextColor: string;
 }

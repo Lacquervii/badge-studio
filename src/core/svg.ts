@@ -22,6 +22,11 @@ export function textColorFor(bg: string): string {
   return (r * 299 + g * 587 + b * 114) / 1000 >= 128 ? '#000000' : '#ffffff';
 }
 
+/** 自定义文字色优先，为空时按底色亮度自动黑白 */
+export function resolveTextColor(bg: string, custom: string): string {
+  return custom !== '' ? custom : textColorFor(bg);
+}
+
 function textEl(content: string, x: number, textLen: number, fill: string): string {
   return `<text x="${x}" y="14" font-family="${FONT_STACK}" font-size="11" font-weight="bold" fill="${fill}" textLength="${textLen}" lengthAdjust="spacingAndGlyphs">${escapeXml(content)}</text>`;
 }
@@ -45,8 +50,8 @@ export function buildBadgeSvg(
   if (two) parts.push(`<rect width="${lw}" height="${BADGE_HEIGHT}" fill="${style.leftBg}"/>`);
   parts.push(`<rect x="${lw}" width="${rw}" height="${BADGE_HEIGHT}" fill="${style.rightBg}"/>`);
   parts.push(`</g>`);
-  if (two) parts.push(textEl(badge.leftText, PAD, leftTextLen, textColorFor(style.leftBg)));
-  parts.push(textEl(badge.rightText, lw + PAD, rightTextLen, textColorFor(style.rightBg)));
+  if (two) parts.push(textEl(badge.leftText, PAD, leftTextLen, resolveTextColor(style.leftBg, style.leftTextColor)));
+  parts.push(textEl(badge.rightText, lw + PAD, rightTextLen, resolveTextColor(style.rightBg, style.rightTextColor)));
   parts.push(`</svg>`);
   return parts.join('');
 }

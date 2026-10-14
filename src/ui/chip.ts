@@ -1,4 +1,4 @@
-import { FONT_STACK, textColorFor } from '../core/svg.ts';
+import { FONT_STACK, resolveTextColor } from '../core/svg.ts';
 import type { ChipSpec } from '../core/types.ts';
 
 export function makeChip(spec: ChipSpec): HTMLSpanElement {
@@ -15,16 +15,16 @@ export function makeChip(spec: ChipSpec): HTMLSpanElement {
   chip.style.verticalAlign = 'middle';
   chip.style.whiteSpace = 'nowrap';
 
-  const seg = (text: string, bg: string) => {
+  const seg = (text: string, bg: string, custom: string) => {
     const s = document.createElement('span');
     s.style.padding = '0 7px';
     s.style.background = bg;
-    s.style.color = textColorFor(bg);
+    s.style.color = resolveTextColor(bg, custom);
     s.textContent = text;
     return s;
   };
 
-  if (spec.leftText !== '') chip.appendChild(seg(spec.leftText, spec.leftBg));
-  chip.appendChild(seg(spec.rightText, spec.rightBg));
+  if (spec.leftText !== '') chip.appendChild(seg(spec.leftText, spec.leftBg, spec.leftTextColor));
+  chip.appendChild(seg(spec.rightText, spec.rightBg, spec.rightTextColor));
   return chip;
 }

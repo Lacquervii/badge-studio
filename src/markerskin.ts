@@ -10,7 +10,14 @@ import { makeChip } from './ui/chip.ts';
 
 function chipFor(plugin: BadgePlugin, badge: BadgeDef): HTMLSpanElement {
   const style = plugin.store.styleOf(badge);
-  return makeChip({ leftText: badge.leftText, rightText: badge.rightText, leftBg: style.leftBg, rightBg: style.rightBg });
+  return makeChip({
+    leftText: badge.leftText,
+    rightText: badge.rightText,
+    leftBg: style.leftBg,
+    rightBg: style.rightBg,
+    leftTextColor: style.leftTextColor,
+    rightTextColor: style.rightTextColor,
+  });
 }
 
 function badgesForNames(plugin: BadgePlugin, names: string[]): BadgeDef[] | null {

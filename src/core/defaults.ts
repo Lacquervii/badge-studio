@@ -11,7 +11,7 @@ export function defaultSettings(): BadgeSettings {
     { id: 's005', name: '紫', rightBg: '#7c3aed' },
     { id: 's006', name: '橙', rightBg: '#f97316' },
     { id: 's007', name: '灰', rightBg: '#555555' },
-  ].map((s) => ({ ...s, leftBg: LEFT_BG }));
+  ].map((s) => ({ ...s, leftBg: LEFT_BG, leftTextColor: '', rightTextColor: '' }));
 
   return {
     assetsFolder: '徽章素材',

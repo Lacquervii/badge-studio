@@ -24,6 +24,10 @@ export class BadgeStore {
       for (const b of this.settings.badges) {
         if (typeof b.group !== 'string') b.group = '';
       }
+      for (const st of this.settings.styles) {
+        if (typeof st.leftTextColor !== 'string') st.leftTextColor = '';
+        if (typeof st.rightTextColor !== 'string') st.rightTextColor = '';
+      }
     } else {
       this.settings = defaultSettings();
       await this.save();

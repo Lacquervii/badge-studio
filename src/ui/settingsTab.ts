@@ -20,12 +20,38 @@ function addColor(control: HTMLElement, value: string, onChange: (v: string) => 
   });
 }
 
+function addTextColor(
+  control: HTMLElement,
+  auto: boolean,
+  color: string,
+  onChange: (auto: boolean, color: string) => void,
+): void {
+  const cb = control.createEl('input', { attr: { type: 'checkbox' } });
+  cb.checked = auto;
+  const picker = control.createEl('input', { attr: { type: 'color', value: auto ? '#000000' : color } });
+  picker.style.display = auto ? 'none' : 'inline-block';
+  picker.style.marginLeft = '6px';
+  picker.style.verticalAlign = 'middle';
+  const label = control.createEl('span', { cls: 'bs-n', text: auto ? '自动' : '自定义' });
+  label.style.marginLeft = '4px';
+  cb.addEventListener('change', () => {
+    picker.style.display = cb.checked ? 'none' : 'inline-block';
+    label.setText(cb.checked ? '自动' : '自定义');
+    onChange(cb.checked, picker.value);
+  });
+  picker.addEventListener('input', () => onChange(false, picker.value));
+}
+
 export class StyleEditModal extends Modal {
   plugin: BadgePlugin;
   existing: StyleDef | null;
   name = '';
   leftBg = '#555555';
   rightBg = '#ffd400';
+  leftAuto = true;
+  rightAuto = true;
+  leftTextColor = '#000000';
+  rightTextColor = '#ffffff';
 
   constructor(plugin: BadgePlugin, existing: StyleDef | null) {
     super(plugin.app);
@@ -35,6 +61,10 @@ export class StyleEditModal extends Modal {
       this.name = existing.name;
       this.leftBg = existing.leftBg;
       this.rightBg = existing.rightBg;
+      this.leftAuto = existing.leftTextColor === '';
+      this.rightAuto = existing.rightTextColor === '';
+      if (existing.leftTextColor !== '') this.leftTextColor = existing.leftTextColor;
+      if (existing.rightTextColor !== '') this.rightTextColor = existing.rightTextColor;
     }
   }
 
@@ -49,14 +79,31 @@ export class StyleEditModal extends Modal {
     addColor(leftRow.controlEl, this.leftBg, (v) => (this.leftBg = v));
     const rightRow = new Setting(contentEl).setName('右块颜色');
     addColor(rightRow.controlEl, this.rightBg, (v) => (this.rightBg = v));
+    const leftTextRow = new Setting(contentEl).setName('左块文字').setDesc('自动＝按底色亮度黑白');
+    addTextColor(leftTextRow.controlEl, this.leftAuto, this.leftTextColor, (auto, color) => {
+      this.leftAuto = auto;
+      this.leftTextColor = color;
+    });
+    const rightTextRow = new Setting(contentEl).setName('右块文字').setDesc('自动＝按底色亮度黑白');
+    addTextColor(rightTextRow.controlEl, this.rightAuto, this.rightTextColor, (auto, color) => {
+      this.rightAuto = auto;
+      this.rightTextColor = color;
+    });
     new Setting(contentEl).addButton((b) => {
       b.setButtonText('保存').setCta();
       b.onClick(async () => {
         if (this.name.trim() === '') return;
+        const patch = {
+          name: this.name.trim(),
+          leftBg: this.leftBg,
+          rightBg: this.rightBg,
+          leftTextColor: this.leftAuto ? '' : this.leftTextColor,
+          rightTextColor: this.rightAuto ? '' : this.rightTextColor,
+        };
         if (this.existing) {
-          await this.plugin.store.updateStyle(this.existing.id, { name: this.name.trim(), leftBg: this.leftBg, rightBg: this.rightBg });
+          await this.plugin.store.updateStyle(this.existing.id, patch);
         } else {
-          await this.plugin.store.addStyle({ name: this.name.trim(), leftBg: this.leftBg, rightBg: this.rightBg });
+          await this.plugin.store.addStyle(patch);
         }
         this.close();
       });
