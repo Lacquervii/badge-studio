@@ -2,6 +2,7 @@ import { Plugin } from 'obsidian';
 import { registerTagSkin } from './tagskin.ts';
 import { BadgeInsertModal } from './ui/insert.ts';
 import { BadgeSidebarView, SIDEBAR_VIEW_TYPE } from './ui/sidebar.ts';
+import { BadgeSettingTab } from './ui/settingsTab.ts';
 import { BadgeStore } from './store.ts';
 
 export class BadgePlugin extends Plugin {
@@ -20,6 +21,7 @@ export class BadgePlugin extends Plugin {
     });
     this.registerView(SIDEBAR_VIEW_TYPE, (leaf) => new BadgeSidebarView(leaf, this));
     this.addRibbonIcon('shield', '徽章工坊：插入徽章', () => void this.revealSidebar());
+    this.addSettingTab(new BadgeSettingTab(this.app, this));
   }
 
   async revealSidebar(): Promise<void> {
