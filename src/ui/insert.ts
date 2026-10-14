@@ -9,7 +9,23 @@ export function insertBadgeAtCursor(plugin: BadgePlugin, badge: BadgeDef): void 
     new Notice('请先打开一篇笔记再插入徽章');
     return;
   }
-  view.editor.replaceRange(markerText(badge.name) + '\n', view.editor.getCursor());
+  const editor = view.editor;
+  const cursor = editor.getCursor();
+  const line = editor.getLine(cursor.line);
+  const marker = markerText(badge.name);
+  let nextLine: number;
+  if (line.trim() === '') {
+    // 空行：整行换成标记行
+    editor.replaceRange(marker + '\n', { line: cursor.line, ch: 0 }, { line: cursor.line, ch: line.length });
+    nextLine = cursor.line + 1;
+  } else {
+    // 非空行：标记行插到本行之后
+    editor.replaceRange('\n' + marker + '\n', { line: cursor.line, ch: line.length });
+    nextLine = cursor.line + 2;
+  }
+  // 光标落到标记行下一行行首：徽章立即渲染，继续打字不会破坏标记
+  editor.setCursor({ line: nextLine, ch: 0 });
+  editor.focus();
 }
 
 export class BadgeInsertModal extends SuggestModal<BadgeDef> {

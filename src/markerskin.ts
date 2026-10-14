@@ -2,7 +2,7 @@ import { Decoration, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet, EditorView, ViewUpdate } from '@codemirror/view';
 import type { Range } from '@codemirror/state';
 import { inCodeBlock } from './cm.ts';
-import { findMarkerRuns, MARKER_RE } from './core/parse.ts';
+import { MARKER_RE, parseBadgeMarker } from './core/parse.ts';
 import { classifyLink } from './core/resolve.ts';
 import type { BadgeDef } from './core/types.ts';
 import type { BadgePlugin } from './main.ts';
@@ -23,27 +23,24 @@ function badgesForNames(plugin: BadgePlugin, names: string[]): BadgeDef[] | null
   return badges;
 }
 
-class RowWidget extends WidgetType {
+/** 编辑模式：单行内联芯片 widget。范围只在单行内，无跨行/块级边界情况。 */
+class ChipWidget extends WidgetType {
   plugin: BadgePlugin;
-  ids: string[];
+  id: string;
   version: number;
-  constructor(plugin: BadgePlugin, badges: BadgeDef[]) {
+  constructor(plugin: BadgePlugin, id: string) {
     super();
     this.plugin = plugin;
-    this.ids = badges.map((b) => b.id);
+    this.id = id;
     this.version = plugin.version;
   }
-  eq(other: RowWidget): boolean {
-    return this.ids.join(',') === other.ids.join(',') && this.version === other.version;
+  eq(other: ChipWidget): boolean {
+    return this.id === other.id && this.version === other.version;
   }
-  toDOM(): HTMLElement {
-    const row = document.createElement('div');
-    row.className = 'bs-marker-row';
-    for (const id of this.ids) {
-      const badge = this.plugin.store.settings.badges.find((b) => b.id === id);
-      if (badge) row.appendChild(chipFor(this.plugin, badge));
-    }
-    return row;
+  toDOM(): HTMLSpanElement {
+    const badge = this.plugin.store.settings.badges.find((b) => b.id === this.id);
+    if (!badge) return document.createElement('span');
+    return chipFor(this.plugin, badge);
   }
   ignoreEvent(): boolean {
     return false;
@@ -51,21 +48,18 @@ class RowWidget extends WidgetType {
 }
 
 function buildDecorations(view: EditorView, plugin: BadgePlugin): DecorationSet {
-  const info: Array<{ text: string; from: number; to: number }> = [];
+  const deco: Array<Range<Decoration>> = [];
+  const sel = view.state.selection;
   for (let i = 1; i <= view.state.doc.lines; i++) {
     const ln = view.state.doc.line(i);
-    info.push({ text: ln.text, from: ln.from, to: ln.to });
-  }
-  const runs = findMarkerRuns(info.map((l) => l.text));
-  const deco: Array<Range<Decoration>> = [];
-  for (const run of runs) {
-    const from = info[run.startLine].from;
-    const to = info[run.endLine].to;
-    if (view.state.selection.ranges.some((r) => r.from <= to && r.to >= from)) continue;
-    if (inCodeBlock(view, from)) continue;
-    const badges = badgesForNames(plugin, run.names);
-    if (!badges) continue;
-    deco.push(Decoration.replace({ widget: new RowWidget(plugin, badges), block: true }).range(from, to));
+    const name = parseBadgeMarker(ln.text);
+    if (name === null) continue;
+    // 光标（含行首/行尾）落在标记行上时显示原文，便于编辑
+    if (sel.ranges.some((r) => r.from <= ln.to && r.to >= ln.from)) continue;
+    if (inCodeBlock(view, ln.from)) continue;
+    const badge = plugin.store.settings.badges.find((b) => b.name === name);
+    if (!badge) continue;
+    deco.push(Decoration.replace({ widget: new ChipWidget(plugin, badge.id) }).range(ln.from, ln.to));
   }
   return Decoration.set(deco, true);
 }
@@ -97,6 +91,7 @@ function openBadgeLink(plugin: BadgePlugin, badge: BadgeDef, sourcePath: string)
 }
 
 export function registerMarkerSkin(plugin: BadgePlugin): void {
+  // 阅读模式：纯标记段落 → 一排徽章（横排合并，带链接可点击）
   plugin.registerMarkdownPostProcessor((el, ctx) => {
     el.querySelectorAll('p').forEach((p) => {
       const names = markerOnlyParagraph(p as HTMLElement);
@@ -116,6 +111,7 @@ export function registerMarkerSkin(plugin: BadgePlugin): void {
     });
   });
 
+  // 编辑模式（实时预览）：每个标记行一个内联芯片
   plugin.registerEditorExtension(
     ViewPlugin.fromClass(
       class {
