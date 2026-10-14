@@ -1,4 +1,5 @@
 import { Plugin } from 'obsidian';
+import { registerTagSkin } from './tagskin.ts';
 import { BadgeStore } from './store.ts';
 
 export class BadgePlugin extends Plugin {
@@ -9,6 +10,7 @@ export class BadgePlugin extends Plugin {
   async onload(): Promise<void> {
     this.store = new BadgeStore(this);
     await this.store.load();
+    registerTagSkin(this);
   }
 
   bump(): void {
