@@ -4,7 +4,8 @@ import { BADGE_MIME } from '../drop.ts';
 import { exportJson, mergeImport } from '../core/io.ts';
 import { PRESET_FAMILIES, PRESET_LEFT_BG } from '../core/presets.ts';
 import { markerText } from '../core/parse.ts';
-import { findBadgeReferences } from '../core/refs.ts';
+import { classifyLink } from '../core/resolve.ts';
+import { findBadgeReferences, notePreview } from '../core/refs.ts';
 import type { BadgeRef } from '../core/refs.ts';
 import type { BadgeDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
@@ -202,10 +203,12 @@ class PresetModal extends Modal {
 export class BadgeSidebarView extends ItemView {
   plugin: BadgePlugin;
   private unsubscribe: (() => void) | null = null;
-  private page: 'badges' | 'styles' = 'badges';
+  private page: 'badges' | 'detail' | 'styles' = 'badges';
+  private detailBadgeId: string | null = null;
   private search = '';
   private collapsedGroups = new Set<string>();
   private refs: Map<string, BadgeRef[]> | null = null;
+  private previewCache = new Map<string, string>();
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
     super(leaf);
@@ -238,6 +241,7 @@ export class BadgeSidebarView extends ItemView {
     const names = this.plugin.store.settings.badges.map((b) => b.name);
     this.refs = await findBadgeReferences(this.app, names);
     if (this.page === 'badges') this.renderList();
+    else if (this.page === 'detail') this.renderDetailBody();
   }
 
   private dataUri(badge: BadgeDef): string {
@@ -250,6 +254,10 @@ export class BadgeSidebarView extends ItemView {
     root.addClass('bs-sidebar');
     if (this.page === 'styles') {
       this.renderStylesPage(root);
+      return;
+    }
+    if (this.page === 'detail') {
+      this.renderDetailPage(root);
       return;
     }
     this.renderHeader(root);
@@ -347,7 +355,7 @@ export class BadgeSidebarView extends ItemView {
             e.dataTransfer.effectAllowed = 'copy';
           }
         });
-        row.onClickEvent(() => insertBadgeAtCursor(this.plugin, badge));
+        row.onClickEvent(() => this.openDetail(badge));
         row.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           this.openBadgeMenu(e, badge);
@@ -393,6 +401,10 @@ export class BadgeSidebarView extends ItemView {
 
   private openBadgeMenu(e: MouseEvent, badge: BadgeDef): void {
     const menu = new Menu();
+    menu.addItem((i) => i.setTitle('详情').setIcon('info').onClick(() => this.openDetail(badge)));
+    menu.addItem((i) =>
+      i.setTitle('插入到当前笔记').setIcon('plus').onClick(() => insertBadgeAtCursor(this.plugin, badge)),
+    );
     menu.addItem((i) => i.setTitle('编辑').setIcon('pencil').onClick(() => new BadgeEditModal(this.plugin, badge).open()));
     menu.addItem((i) =>
       i.setTitle('复制标记').setIcon('copy').onClick(() => {
@@ -406,17 +418,144 @@ export class BadgeSidebarView extends ItemView {
         i.setTitle(`引用列表（${refs.length} 篇）`).setIcon('list').onClick(() => new RefsModal(this.app, badge.name, refs).open()),
       );
     }
-    menu.addItem((i) =>
-      i.setTitle('删除').setIcon('trash-2').onClick(() => {
-        const doDelete = (): void => void this.plugin.store.deleteBadge(badge.id);
-        const warning =
-          refs.length > 0
-            ? `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后徽章数据、正文里的标记和已固化的图片都会被移除。仍要删除吗？`
-            : `删除「${badge.name}」？正文里的标记和已固化的图片也会被移除。仍要删除吗？`;
-        new ConfirmModal(this.app, warning, doDelete).open();
-      }),
-    );
+    menu.addItem((i) => i.setTitle('删除').setIcon('trash-2').onClick(() => this.confirmDelete(badge)));
     menu.showAtMouseEvent(e);
+  }
+
+  private confirmDelete(badge: BadgeDef): void {
+    const refs = this.refs?.get(badge.name) ?? [];
+    const doDelete = (): void => {
+      void this.plugin.store.deleteBadge(badge.id).then(() => {
+        if (this.page === 'detail' && this.detailBadgeId === badge.id) {
+          this.page = 'badges';
+          this.detailBadgeId = null;
+        }
+        this.render();
+      });
+    };
+    const warning =
+      refs.length > 0
+        ? `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后徽章数据、正文里的标记和已固化的图片都会被移除。仍要删除吗？`
+        : `删除「${badge.name}」？正文里的标记和已固化的图片也会被移除。仍要删除吗？`;
+    new ConfirmModal(this.app, warning, doDelete).open();
+  }
+
+  private openDetail(badge: BadgeDef): void {
+    this.page = 'detail';
+    this.detailBadgeId = badge.id;
+    this.render();
+  }
+
+  private renderDetailPage(root: HTMLElement): void {
+    const badge = this.plugin.store.settings.badges.find((b) => b.id === this.detailBadgeId);
+    if (!badge) {
+      this.page = 'badges';
+      this.detailBadgeId = null;
+      this.render();
+      return;
+    }
+    const header = root.createDiv({ cls: 'bs-side-header' });
+    new ButtonComponent(header)
+      .setIcon('arrow-left')
+      .setTooltip('返回列表')
+      .onClick(() => {
+        this.page = 'badges';
+        this.detailBadgeId = null;
+        this.render();
+      });
+    header.createDiv({ cls: 'bs-side-spacer' });
+    new ButtonComponent(header)
+      .setIcon('pencil')
+      .setTooltip('编辑徽章')
+      .onClick(() => new BadgeEditModal(this.plugin, badge).open());
+    new ButtonComponent(header)
+      .setIcon('trash-2')
+      .setTooltip('删除徽章')
+      .onClick(() => this.confirmDelete(badge));
+    root.createDiv({ cls: 'bs-detail-page' });
+    this.renderDetailBody();
+  }
+
+  private renderDetailBody(): void {
+    const page = this.containerEl.querySelector('.bs-detail-page') as HTMLElement | null;
+    if (!page) return;
+    page.empty();
+    const badge = this.plugin.store.settings.badges.find((b) => b.id === this.detailBadgeId);
+    if (!badge) return;
+
+    const head = page.createDiv({ cls: 'bs-detail-head' });
+    head.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+    head.createDiv({ cls: 'bs-detail-name', text: badge.name });
+    const style = this.plugin.store.styleOf(badge);
+    const meta = head.createDiv({ cls: 'bs-detail-meta' });
+    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
+    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
+    meta.createSpan({ text: style.name });
+    if (badge.group !== '') meta.createSpan({ cls: 'bs-n', text: badge.group });
+    if (badge.link !== '') {
+      const lk = classifyLink(badge.link);
+      const linkEl = head.createDiv({ cls: 'bs-detail-link' });
+      setIcon(linkEl.createSpan(), lk.kind === 'url' ? 'external-link' : 'link');
+      linkEl.createSpan({ text: badge.link });
+      linkEl.addEventListener('click', () => {
+        if (lk.kind === 'url') window.open(lk.url);
+        else if (lk.kind === 'note') void this.app.workspace.openLinkText(lk.name, '');
+      });
+    }
+    const actions = head.createDiv({ cls: 'bs-detail-actions' });
+    new ButtonComponent(actions)
+      .setButtonText('插入到当前笔记')
+      .setCta()
+      .onClick(() => insertBadgeAtCursor(this.plugin, badge));
+
+    const sec = page.createDiv({ cls: 'bs-detail-section' });
+    const refs = this.refs?.get(badge.name) ?? null;
+    const total = refs?.reduce((n, r) => n + r.count, 0) ?? 0;
+    const h4 = sec.createEl('h4');
+    h4.createSpan({ text: refs === null ? '引用（统计中…）' : `引用（${refs.length} 篇 · 共 ${total} 处）` });
+    if (refs !== null) {
+      new ButtonComponent(h4)
+        .setIcon(this.plugin.store.settings.refsPreview ? 'eye' : 'eye-off')
+        .setTooltip('显示 / 关闭预览')
+        .onClick(async () => {
+          this.plugin.store.settings.refsPreview = !this.plugin.store.settings.refsPreview;
+          await this.plugin.store.save();
+          this.renderDetailBody();
+        });
+    }
+    if (refs !== null && refs.length > 0) {
+      const showPreview = this.plugin.store.settings.refsPreview;
+      for (const r of refs) {
+        const item = sec.createDiv({ cls: 'bs-ref-item' });
+        const titleRow = item.createDiv({ cls: 'bs-ref-head' });
+        titleRow.createSpan({ cls: 'bs-ref-title', text: r.path.split('/').pop()?.replace(/\.md$/, '') ?? r.path });
+        titleRow.createSpan({ cls: 'bs-n', text: `${r.count} 处` });
+        item.createDiv({ cls: 'bs-ref-path', text: r.path });
+        if (showPreview) {
+          const pv = item.createDiv({ cls: 'bs-ref-preview' });
+          const cached = this.previewCache.get(r.path);
+          if (cached !== undefined) pv.setText(cached);
+          else this.loadPreview(r.path, pv);
+        }
+        item.addEventListener('click', () => {
+          const file = this.app.vault.getAbstractFileByPath(r.path);
+          if (file instanceof TFile) void this.app.workspace.getLeaf('tab').openFile(file);
+        });
+      }
+    } else if (refs !== null) {
+      sec.createDiv({ cls: 'bs-empty', text: '还没有笔记引用这个徽章' });
+    }
+  }
+
+  private loadPreview(path: string, el: HTMLElement): void {
+    void notePreview(this.app, path)
+      .then((text) => {
+        this.previewCache.set(path, text);
+        if (el.isConnected) el.setText(text);
+      })
+      .catch(() => {
+        /* 读取失败留空 */
+      });
   }
 
   private renderStylesPage(root: HTMLElement): void {

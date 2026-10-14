@@ -1,7 +1,42 @@
-import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
+import { AbstractInputSuggest, Modal, PluginSettingTab, Setting, TFile } from 'obsidian';
+import type { App } from 'obsidian';
 import type { BadgeDef, StyleDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
 import { insertBadgeAtCursor } from './insert.ts';
+
+/** 「链接」输入框的笔记联想：选中的是完整路径，天然区分同名文件 */
+class FileSuggest extends AbstractInputSuggest<TFile> {
+  private onPick: (file: TFile) => void;
+
+  constructor(app: App, inputEl: HTMLInputElement, onPick: (file: TFile) => void) {
+    super(app, inputEl);
+    this.onPick = onPick;
+  }
+
+  protected getSuggestions(query: string): TFile[] {
+    const q = query.trim().toLowerCase();
+    const files = this.app.vault.getMarkdownFiles();
+    const matched =
+      q === '' ? files.slice(0, 30) : files.filter((f) => f.path.toLowerCase().includes(q));
+    matched.sort((a, b) => {
+      const ai = a.basename.toLowerCase().startsWith(q) ? 0 : 1;
+      const bi = b.basename.toLowerCase().startsWith(q) ? 0 : 1;
+      return ai - bi || a.basename.localeCompare(b.basename);
+    });
+    return matched.slice(0, 30);
+  }
+
+  renderSuggestion(file: TFile, el: HTMLElement): void {
+    el.createDiv({ text: file.basename });
+    el.createDiv({ cls: 'bs-suggest-path', text: file.path });
+  }
+
+  selectSuggestion(file: TFile): void {
+    this.setValue(file.path);
+    this.onPick(file);
+    this.close();
+  }
+}
 
 function addColor(control: HTMLElement, value: string, onChange: (v: string) => void): void {
   const picker = control.createEl('input', { attr: { type: 'color', value } });
@@ -152,7 +187,43 @@ export class BadgeEditModal extends Modal {
       d.setValue(this.styleId);
       d.onChange((v) => (this.styleId = v));
     });
-    new Setting(contentEl).setName('链接（选填：网址或笔记名）').addText((t) => t.setValue(this.link).onChange((v) => (this.link = v)));
+    const linkRow = new Setting(contentEl).setName('链接（选填：网址或笔记名）');
+    const hint = contentEl.createDiv({ cls: 'bs-link-hint' });
+    const updateHint = (): void => {
+      const v = this.link.trim();
+      if (v === '') {
+        hint.setText('留空＝徽章不带链接，点击不跳转');
+        return;
+      }
+      if (/^https?:\/\//i.test(v)) {
+        hint.setText('外部网址，点击时用浏览器打开');
+        return;
+      }
+      const base = v.split('/').pop()?.replace(/\.md$/, '') ?? v;
+      const sameName = this.plugin.app.vault.getMarkdownFiles().filter((f) => f.basename === base);
+      const dest = this.plugin.app.metadataCache.getFirstLinkpathDest(v, '');
+      if (dest) {
+        hint.setText(
+          sameName.length > 1
+            ? `→ ${dest.path}（库里有 ${sameName.length} 个同名笔记，建议从下拉选完整路径）`
+            : `→ ${dest.path}`,
+        );
+      } else {
+        hint.setText('⚠ 找不到这篇笔记，点击时会按这个名字打开（可能新建空笔记）');
+      }
+    };
+    linkRow.addText((t) => {
+      t.setValue(this.link);
+      t.onChange((v) => {
+        this.link = v;
+        updateHint();
+      });
+      new FileSuggest(this.plugin.app, t.inputEl, (file) => {
+        this.link = file.path;
+        updateHint();
+      });
+    });
+    updateHint();
     new Setting(contentEl).setName('分组（选填）').addText((t) => {
       t.setValue(this.group).onChange((v) => (this.group = v.trim()));
       t.inputEl.setAttribute('list', 'bs-group-datalist');
