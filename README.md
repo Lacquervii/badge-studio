@@ -30,7 +30,11 @@
 
 **方式二：BRAT**
 
-安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件后，运行命令 `BRAT: Add a beta plugin for testing`，填入 `Lacquervii/badge-studio` 即可。
+安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件后，运行命令 `BRAT: Add a beta plugin for testing`，填入下面这个地址即可：
+
+```
+https://github.com/Lacquervii/badge-studio
+```
 
 ## 用法
 
