@@ -2,7 +2,7 @@ import { ItemView, Setting } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
 import type { BadgeDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
-import { insertBadgeAtCursor } from './insert.ts';
+import { insertBadgeAtCursor, badgeMarkdownSync } from './insert.ts';
 
 export const SIDEBAR_VIEW_TYPE = 'badge-studio-sidebar';
 
@@ -76,8 +76,16 @@ export class BadgeSidebarView extends ItemView {
     const badges = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
     for (const badge of badges) {
       const row = listEl.createDiv({ cls: 'bs-row' });
-      row.createEl('img', { attr: { src: this.dataUri(badge) } });
+      row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
       row.createSpan({ text: badge.name });
+      row.setAttribute('draggable', 'true');
+      row.addEventListener('dragstart', (e) => {
+        const t = badgeMarkdownSync(this.plugin, badge);
+        if (t && e.dataTransfer) {
+          e.dataTransfer.setData('text/plain', t);
+          e.dataTransfer.effectAllowed = 'copy';
+        }
+      });
       row.onClickEvent(() => void insertBadgeAtCursor(this.plugin, badge));
     }
     if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的标签' });

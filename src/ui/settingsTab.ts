@@ -176,7 +176,7 @@ export class BadgeSettingTab extends PluginSettingTab {
     for (const badge of this.plugin.store.settings.badges) {
       const svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(this.plugin.store.buildSvg(badge));
       const row = new Setting(containerEl).setName(badge.name);
-      row.controlEl.createEl('img', { attr: { src: svg, style: 'margin-right:8px' } });
+      row.controlEl.createEl('img', { attr: { src: svg, style: 'margin-right:8px', draggable: 'false' } });
       row.addButton((b) => b.setButtonText('编辑').onClick(() => new BadgeEditModal(this.plugin, badge).open()));
       row.addButton((b) => b.setButtonText('删除').setWarning().onClick(async () => {
         await this.plugin.store.deleteBadge(badge.id);
