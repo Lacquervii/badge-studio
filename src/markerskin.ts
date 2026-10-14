@@ -47,7 +47,16 @@ class ChipWidget extends WidgetType {
   toDOM(): HTMLSpanElement {
     const badge = this.plugin.store.settings.badges.find((b) => b.id === this.id);
     if (!badge) return document.createElement('span');
-    return chipFor(this.plugin, badge);
+    const chip = chipFor(this.plugin, badge);
+    if (badge.link !== '') {
+      chip.style.cursor = 'pointer';
+      chip.title = `点击跳转：${badge.link}`;
+      chip.addEventListener('click', () => {
+        const sourcePath = this.plugin.app.workspace.getActiveFile()?.path ?? '';
+        openBadgeLink(this.plugin, badge, sourcePath);
+      });
+    }
+    return chip;
   }
   ignoreEvent(): boolean {
     return false;
