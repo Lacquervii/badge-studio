@@ -1,5 +1,6 @@
-import { nextNumericId } from './defaults.ts';
-import type { BadgeDef, BadgeSettings, StyleDef } from './types.ts';
+import { FALLBACK_PALETTE, nextNumericId } from './defaults.ts';
+import type { LegacyBadge } from './migrate.ts';
+import type { BadgeDef, BadgeSettings, Palette, StyleDef } from './types.ts';
 
 export interface ExportData {
   styles: StyleDef[];
@@ -28,6 +29,27 @@ function importTextColor(v: unknown): string {
 
 function fail(error: string): ImportResult {
   return { stylesAdded: 0, badgesAdded: 0, skipped: 0, error };
+}
+
+/**
+ * 取徽章配色：
+ * - 新数据自带 leftBg/rightBg，直接采用；
+ * - 旧数据只有 styleId，则按导入映射找到本地样式，把它的颜色复制过来（迁移语义）。
+ */
+function pickPalette(cand: LegacyBadge, styleIdMap: Map<string, string>, settings: BadgeSettings): Palette {
+  if (isHexColor(cand.leftBg) && isHexColor(cand.rightBg)) {
+    return {
+      leftBg: cand.leftBg,
+      rightBg: cand.rightBg,
+      leftTextColor: importTextColor(cand.leftTextColor),
+      rightTextColor: importTextColor(cand.rightTextColor),
+    };
+  }
+  const oldId = typeof cand.styleId === 'string' ? cand.styleId : '';
+  const mapped = styleIdMap.get(oldId) ?? settings.defaultStyleId;
+  const s = settings.styles.find((x) => x.id === mapped) ?? settings.styles[0];
+  if (!s) return { ...FALLBACK_PALETTE };
+  return { leftBg: s.leftBg, rightBg: s.rightBg, leftTextColor: s.leftTextColor, rightTextColor: s.rightTextColor };
 }
 
 export function mergeImport(settings: BadgeSettings, raw: unknown): ImportResult {
@@ -78,15 +100,24 @@ export function mergeImport(settings: BadgeSettings, raw: unknown): ImportResult
       skipped++;
       continue;
     }
-    const oldStyleId = typeof cand.styleId === 'string' ? cand.styleId : '';
     const badge: BadgeDef = {
       id: nextNumericId(settings.badges.map((x) => x.id), false),
       name: cand.name.trim(),
       leftText: typeof cand.leftText === 'string' ? cand.leftText : '',
       rightText: cand.rightText.trim(),
-      styleId: styleIdMap.get(oldStyleId) ?? settings.defaultStyleId,
       link: typeof cand.link === 'string' ? cand.link : '',
       group: typeof cand.group === 'string' ? cand.group : '',
+      // 旧导出文件里图标字段叫 logo，迁移到 logoLeft
+      logoLeft:
+        typeof cand.logoLeft === 'string'
+          ? cand.logoLeft
+          : typeof (cand as LegacyBadge).logo === 'string'
+            ? ((cand as LegacyBadge).logo as string)
+            : '',
+      logoLeftInner: typeof cand.logoLeftInner === 'string' ? cand.logoLeftInner : '',
+      logoRightInner: typeof cand.logoRightInner === 'string' ? cand.logoRightInner : '',
+      logoRight: typeof cand.logoRight === 'string' ? cand.logoRight : '',
+      ...pickPalette(cand as LegacyBadge, styleIdMap, settings),
     };
     settings.badges.push(badge);
     badgesAdded++;

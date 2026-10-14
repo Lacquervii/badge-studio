@@ -1,9 +1,22 @@
-import type { BadgeSettings } from './types.ts';
+import type { BadgeSettings, Palette, StyleDef } from './types.ts';
 
 const LEFT_BG = '#555555';
 
+/** 兜底配色：样式库为空、或旧数据找不到对应样式时使用 */
+export const FALLBACK_PALETTE: Palette = {
+  leftBg: LEFT_BG,
+  rightBg: '#ffd400',
+  leftTextColor: '',
+  rightTextColor: '',
+};
+
+function paletteOfStyle(styles: StyleDef[], styleId: string): Palette {
+  const s = styles.find((x) => x.id === styleId) ?? styles[0];
+  return { leftBg: s.leftBg, rightBg: s.rightBg, leftTextColor: s.leftTextColor, rightTextColor: s.rightTextColor };
+}
+
 export function defaultSettings(): BadgeSettings {
-  const styles = [
+  const styles: StyleDef[] = [
     { id: 's001', name: '黄', rightBg: '#ffd400' },
     { id: 's002', name: '绿', rightBg: '#4caf50' },
     { id: 's003', name: '红', rightBg: '#e05d44' },
@@ -16,13 +29,14 @@ export function defaultSettings(): BadgeSettings {
   return {
     assetsFolder: '徽章素材',
     defaultStyleId: 's001',
-    groups: ['状态', '科目'],
+    sidebarView: 'list',
+    groups: ['状态'],
     refsPreview: true,
     styles,
     badges: [
-      { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', link: '', group: '状态' },
-      { id: '002', name: '科目-现代汉语', leftText: '科目', rightText: '现代汉语', styleId: 's004', link: '', group: '科目' },
-      { id: '003', name: '单段-示例', leftText: '', rightText: '示例', styleId: 's005', link: '', group: '' },
+      { id: '001', name: '状态-未开始', leftText: '状态', rightText: '未开始', link: '', group: '状态', logoLeft: 'circle', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's007') },
+      { id: '002', name: '状态-进行中', leftText: '状态', rightText: '进行中', link: '', group: '状态', logoLeft: 'clock', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's001') },
+      { id: '003', name: '状态-已完成', leftText: '状态', rightText: '已完成', link: '', group: '状态', logoLeft: 'check-circle', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's002') },
     ],
   };
 }

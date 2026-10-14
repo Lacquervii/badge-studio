@@ -19,7 +19,7 @@ test('mergeImport 新增并映射 styleId，重名跳过', () => {
     ],
     badges: [
       { id: '900', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's900' },
-      { id: '901', name: '新徽章', leftText: '', rightText: '新', styleId: 's901', group: '导入组' },
+      { id: '901', name: '新徽章', leftText: '', rightText: '新', styleId: 's901', group: '导入组', logo: 'github' },
       { name: '缺右字', leftText: 'x' },
     ],
   };
@@ -31,19 +31,37 @@ test('mergeImport 新增并映射 styleId，重名跳过', () => {
   const added = settings.badges.find((b) => b.name === '新徽章');
   assert.ok(added);
   assert.equal(added.group, '导入组');
-  const addedStyle = settings.styles.find((s) => s.name === '新样式');
-  assert.ok(addedStyle);
-  assert.equal(added.styleId, addedStyle.id);
+  // 旧导出文件的 logo 字段会迁移到 logoLeft
+  assert.equal(added.logoLeft, 'github');
+  // 旧格式（只有 styleId）导入时，把对应样式的颜色复制到徽章自己身上
+  assert.equal(added.leftBg, '#333333');
+  assert.equal(added.rightBg, '#444444');
 });
 
 test('mergeImport 导入导出往返一致', () => {
   const a = defaultSettings();
   const b = defaultSettings();
-  b.badges.push({ id: '100', name: '独有徽章', leftText: '独', rightText: '有', styleId: 's002', link: '', group: '测试' });
+  b.badges.push({
+    id: '100',
+    name: '独有徽章',
+    leftText: '独',
+    rightText: '有',
+    leftBg: '#555555',
+    rightBg: '#4caf50',
+    leftTextColor: '',
+    rightTextColor: '',
+    link: '',
+    group: '测试',
+    logoLeft: '',
+    logoLeftInner: '',
+    logoRightInner: '',
+    logoRight: '',
+  });
   const result = mergeImport(a, JSON.parse(exportJson(b)));
   assert.equal(result.error, undefined);
   assert.equal(result.badgesAdded, 1);
-  assert.ok(a.badges.some((x) => x.name === '独有徽章' && x.group === '测试'));
+  // 新格式自带颜色：导入后颜色原样保留，不受本地样式库影响
+  assert.ok(a.badges.some((x) => x.name === '独有徽章' && x.group === '测试' && x.rightBg === '#4caf50'));
 });
 
 test('mergeImport 拒绝坏数据', () => {

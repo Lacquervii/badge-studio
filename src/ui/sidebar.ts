@@ -209,6 +209,8 @@ export class BadgeSidebarView extends ItemView {
   private collapsedGroups = new Set<string>();
   private refs: Map<string, BadgeRef[]> | null = null;
   private previewCache = new Map<string, string>();
+  /** 刚弹出右键菜单的时间戳：触控板右键等情况下系统会连带触发一次 click，用它挡掉误触 */
+  private lastMenuAt = 0;
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
     super(leaf);
@@ -252,6 +254,7 @@ export class BadgeSidebarView extends ItemView {
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
     root.addClass('bs-sidebar');
+    root.oncontextmenu = (e) => this.openBlankMenu(e);
     if (this.page === 'styles') {
       this.renderStylesPage(root);
       return;
@@ -276,6 +279,15 @@ export class BadgeSidebarView extends ItemView {
       this.search = v.trim().toLowerCase();
       this.renderList();
     });
+    const viewKind = this.plugin.store.settings.sidebarView;
+    new ButtonComponent(header)
+      .setIcon(viewKind === 'grid' ? 'list' : 'layout-grid')
+      .setTooltip(viewKind === 'grid' ? '切换到列表视图' : '切换到堆放视图')
+      .onClick(async () => {
+        this.plugin.store.settings.sidebarView = viewKind === 'grid' ? 'list' : 'grid';
+        await this.plugin.store.save();
+        this.render();
+      });
     const more = new ButtonComponent(header).setIcon('more-horizontal').setTooltip('更多');
     more.onClick((e) => {
       const menu = new Menu();
@@ -317,14 +329,16 @@ export class BadgeSidebarView extends ItemView {
     }
     const order = [...byGroup.keys()].filter((g) => g !== '').sort();
     if (byGroup.has('')) order.push('');
+    const grid = this.plugin.store.settings.sidebarView === 'grid';
     for (const g of order) {
       const collapsed = this.collapsedGroups.has(g);
       const h = listEl.createDiv({ cls: 'bs-group-header' });
       setIcon(h.createSpan({ cls: 'bs-chevron' }), collapsed ? 'chevron-right' : 'chevron-down');
       setIcon(h.createSpan({ cls: 'bs-icon-inline' }), g === '' ? 'inbox' : 'folder');
       h.createSpan({ text: g === '' ? '未分组' : g });
-      h.createSpan({ cls: 'bs-count', text: `${byGroup.get(g)!.length}` });
+      if (!grid) h.createSpan({ cls: 'bs-count', text: `${byGroup.get(g)!.length}` });
       h.onClickEvent(() => {
+        if (this.menuJustOpened()) return;
         if (collapsed) this.collapsedGroups.delete(g);
         else this.collapsedGroups.add(g);
         this.renderList();
@@ -334,6 +348,32 @@ export class BadgeSidebarView extends ItemView {
         this.openGroupMenu(e, g);
       });
       if (collapsed) continue;
+      if (grid) {
+        // 堆放视图：纯徽章图片流，不显示名字与引用数（悬停可见名字）
+        const wrap = listEl.createDiv({ cls: 'bs-grid' });
+        for (const badge of byGroup.get(g)!) {
+          const tile = wrap.createDiv({ cls: 'bs-tile' });
+          tile.setAttribute('title', badge.name);
+          tile.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+          tile.setAttribute('draggable', 'true');
+          tile.addEventListener('dragstart', (e) => {
+            if (e.dataTransfer) {
+              e.dataTransfer.setData(BADGE_MIME, badge.name);
+              e.dataTransfer.setData('text/plain', markerText(badge.name));
+              e.dataTransfer.effectAllowed = 'copy';
+            }
+          });
+          tile.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.openBadgeMenu(e, badge);
+          });
+          tile.onClickEvent(() => {
+            if (this.menuJustOpened()) return;
+            this.openDetail(badge);
+          });
+        }
+        continue;
+      }
       for (const badge of byGroup.get(g)!) {
         const row = listEl.createDiv({ cls: 'bs-row' });
         row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
@@ -355,7 +395,10 @@ export class BadgeSidebarView extends ItemView {
             e.dataTransfer.effectAllowed = 'copy';
           }
         });
-        row.onClickEvent(() => this.openDetail(badge));
+        row.onClickEvent(() => {
+          if (this.menuJustOpened()) return;
+          this.openDetail(badge);
+        });
         row.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           this.openBadgeMenu(e, badge);
@@ -365,7 +408,38 @@ export class BadgeSidebarView extends ItemView {
     if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
   }
 
+  /** 右键菜单刚弹过 → 短时间内忽略随后的 click，避免误开详情页、误折叠分组 */
+  private menuJustOpened(): boolean {
+    return Date.now() - this.lastMenuAt < 500;
+  }
+
+  /** 侧栏空白处右键：新建徽章、管理分组、样式库、导入导出 */
+  private openBlankMenu(e: MouseEvent): void {
+    if (e.defaultPrevented) return;
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    // 输入框/按钮保留系统菜单；行、分组、引用条目各有自己的右键菜单
+    if (target.closest('input, textarea, select, button, a')) return;
+    if (target.closest('.bs-row, .bs-group-header, .bs-ref-item, .bs-style-row')) return;
+    e.preventDefault();
+    this.lastMenuAt = Date.now();
+    const menu = new Menu();
+    menu.addItem((i) => i.setTitle('新建徽章').setIcon('circle-plus').onClick(() => new BadgeEditModal(this.plugin, null).open()));
+    menu.addItem((i) => i.setTitle('管理分组').setIcon('folder-plus').onClick(() => new GroupManagerModal(this.plugin).open()));
+    menu.addItem((i) =>
+      i.setTitle('样式库').setIcon('palette').onClick(() => {
+        this.page = 'styles';
+        this.render();
+      }),
+    );
+    menu.addSeparator();
+    menu.addItem((i) => i.setTitle('导入 JSON').setIcon('upload').onClick(() => this.pickImportFile()));
+    menu.addItem((i) => i.setTitle('导出 JSON').setIcon('download').onClick(() => this.exportAll()));
+    menu.showAtMouseEvent(e);
+  }
+
   private openGroupMenu(e: MouseEvent, group: string): void {
+    this.lastMenuAt = Date.now();
     const menu = new Menu();
     if (group !== '') {
       menu.addItem((i) =>
@@ -400,6 +474,7 @@ export class BadgeSidebarView extends ItemView {
   }
 
   private openBadgeMenu(e: MouseEvent, badge: BadgeDef): void {
+    this.lastMenuAt = Date.now();
     const menu = new Menu();
     menu.addItem((i) => i.setTitle('详情').setIcon('info').onClick(() => this.openDetail(badge)));
     menu.addItem((i) =>
@@ -435,8 +510,8 @@ export class BadgeSidebarView extends ItemView {
     };
     const warning =
       refs.length > 0
-        ? `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后徽章数据、正文里的标记和已固化的图片都会被移除。仍要删除吗？`
-        : `删除「${badge.name}」？正文里的标记和已固化的图片也会被移除。仍要删除吗？`;
+        ? `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后徽章数据、正文标记与固化图片都会被移除，素材 SVG 也会移入回收站。仍要删除吗？`
+        : `删除「${badge.name}」？正文标记与固化图片会被移除，素材 SVG 也会移入回收站。仍要删除吗？`;
     new ConfirmModal(this.app, warning, doDelete).open();
   }
 
@@ -486,11 +561,10 @@ export class BadgeSidebarView extends ItemView {
     const head = page.createDiv({ cls: 'bs-detail-head' });
     head.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
     head.createDiv({ cls: 'bs-detail-name', text: badge.name });
-    const style = this.plugin.store.styleOf(badge);
     const meta = head.createDiv({ cls: 'bs-detail-meta' });
-    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
-    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
-    meta.createSpan({ text: style.name });
+    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${badge.leftBg}` } });
+    meta.createSpan({ cls: 'bs-swatch', attr: { style: `background:${badge.rightBg}` } });
+    meta.createSpan({ cls: 'bs-n', text: `${badge.leftBg} ／ ${badge.rightBg}` });
     if (badge.group !== '') meta.createSpan({ cls: 'bs-n', text: badge.group });
     if (badge.link !== '') {
       const lk = classifyLink(badge.link);
@@ -582,16 +656,15 @@ export class BadgeSidebarView extends ItemView {
       row.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
       const info = row.createDiv({ cls: 'bs-style-info' });
       info.createSpan({ cls: 'bs-style-name', text: style.name });
-      info.createSpan({ cls: 'bs-n', text: `被 ${this.plugin.store.styleUsage(style.id)} 个徽章使用` });
+      info.createSpan({ cls: 'bs-n', text: '取色模板：徽章会复制它的颜色，之后互不影响' });
+      iconBtn(row, 'plus', '用这个配色新建徽章').addEventListener('click', () =>
+        new BadgeEditModal(this.plugin, null, undefined, style.id).open(),
+      );
       iconBtn(row, 'pencil', '编辑').addEventListener('click', () => new StyleEditModal(this.plugin, style).open());
       iconBtn(row, 'trash-2', '删除样式').addEventListener('click', () => {
-        const usage = this.plugin.store.styleUsage(style.id);
-        const doDelete = (): void => void this.plugin.store.deleteStyle(style.id);
-        if (usage === 0) {
-          doDelete();
-          return;
-        }
-        new ConfirmModal(this.app, `样式「${style.name}」正被 ${usage} 个徽章使用，删除后这些徽章会改用默认样式。仍要删除吗？`, doDelete).open();
+        new ConfirmModal(this.app, `删除样式「${style.name}」？它只是取色模板，已创建的徽章不受影响。`, () => {
+          void this.plugin.store.deleteStyle(style.id);
+        }).open();
       });
     }
     if (this.plugin.store.settings.styles.length === 0) {

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Badge Studio 徽章工坊">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22303f"/>
+      <stop offset="1" stop-color="#141d27"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6eaee"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5bc8ff"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <clipPath id="badge">
+      <path d="M23 54H97A9 9 0 0 1 106 63V77A9 9 0 0 1 97 86H23A9 9 0 0 1 14 77V63A9 9 0 0 1 23 54Z"/>
+    </clipPath>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#bg)"/>
+  <circle cx="101" cy="27" r="21" fill="#ffffff" opacity="0.07"/>
+  <g filter="url(#shadow)">
+    <g clip-path="url(#badge)">
+      <path d="M23 54H60V86H23A9 9 0 0 1 14 77V63A9 9 0 0 1 23 54Z" fill="url(#left)"/>
+      <path d="M60 54H97A9 9 0 0 1 106 63V77A9 9 0 0 1 97 86H60Z" fill="url(#right)"/>
+      <rect x="14" y="54" width="92" height="13" fill="url(#gloss)"/>
+    </g>
+  </g>
+  <path d="M101 12c1.7 8.5 5.3 12.1 13.8 13.8-8.5 1.7-12.1 5.3-13.8 13.8-1.7-8.5-5.3-12.1-13.8-13.8 8.5-1.7 12.1-5.3 13.8-13.8z" fill="#ffffff"/>
+</svg>

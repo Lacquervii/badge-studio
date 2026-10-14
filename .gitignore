@@ -1,4 +1,8 @@
 node_modules/
-main.js
-*.js.map
 .DS_Store
+*.log
+
+# 开发过程记录（本地保留，不进仓库）
+docs/superpowers/
+开发OBSIDIAN标签插件_2026-10-14_14-29.md
+Obsidian标签插件优化与管理.md

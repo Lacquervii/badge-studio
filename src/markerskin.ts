@@ -9,14 +9,14 @@ import type { BadgePlugin } from './main.ts';
 import { makeChip } from './ui/chip.ts';
 
 function chipFor(plugin: BadgePlugin, badge: BadgeDef): HTMLSpanElement {
-  const style = plugin.store.styleOf(badge);
   return makeChip({
     leftText: badge.leftText,
     rightText: badge.rightText,
-    leftBg: style.leftBg,
-    rightBg: style.rightBg,
-    leftTextColor: style.leftTextColor,
-    rightTextColor: style.rightTextColor,
+    leftBg: badge.leftBg,
+    rightBg: badge.rightBg,
+    leftTextColor: badge.leftTextColor,
+    rightTextColor: badge.rightTextColor,
+    ...plugin.store.logosOf(badge),
   });
 }
 

@@ -19,10 +19,30 @@ test('默认设置：样式左块统一深灰，右块色值符合规格', () =>
   assert.equal(byName['紫'], '#7c3aed');
 });
 
-test('默认设置：第三个标签是单段（leftText 空）', () => {
+test('默认设置：自带三枚状态徽章（未开始 / 进行中 / 已完成）', () => {
   const s = defaultSettings();
-  assert.equal(s.badges[2].leftText, '');
-  assert.equal(s.badges[2].rightText, '示例');
+  assert.deepEqual(
+    s.badges.map((b) => b.name),
+    ['状态-未开始', '状态-进行中', '状态-已完成'],
+  );
+  assert.deepEqual(
+    s.badges.map((b) => b.rightText),
+    ['未开始', '进行中', '已完成'],
+  );
+  for (const b of s.badges) assert.equal(b.leftText, '状态');
+  for (const b of s.badges) assert.equal(b.group, '状态');
+});
+
+test('默认设置：三枚状态徽章各带一枚图标，配色分别是灰 / 黄 / 绿', () => {
+  const s = defaultSettings();
+  assert.deepEqual(
+    s.badges.map((b) => b.logoLeft),
+    ['circle', 'clock', 'check-circle'],
+  );
+  assert.deepEqual(
+    s.badges.map((b) => b.rightBg),
+    ['#555555', '#ffd400', '#4caf50'],
+  );
 });
 
 test('nextNumericId 递增且补零', () => {
