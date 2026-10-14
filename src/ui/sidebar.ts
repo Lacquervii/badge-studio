@@ -1,4 +1,4 @@
-import { ItemView, Setting } from 'obsidian';
+import { ButtonComponent, ItemView, SearchComponent, Setting, setIcon } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
 import { BADGE_MIME } from '../drop.ts';
 import { markerText } from '../core/parse.ts';
@@ -46,44 +46,51 @@ export class BadgeSidebarView extends ItemView {
     root.empty();
     root.addClass('bs-sidebar');
 
-    const listEl = root.createDiv({ cls: 'bs-list' });
-
-    new Setting(root).addSearch((s) => {
-      s.setPlaceholder('搜索标签…');
-      s.onChange((v) => {
-        this.search = v.trim().toLowerCase();
-        this.renderList(listEl);
-      });
+    const header = root.createDiv({ cls: 'bs-side-header' });
+    const search = new SearchComponent(header);
+    search.setPlaceholder('搜索徽章…');
+    search.setValue(this.search);
+    search.onChange((v) => {
+      this.search = v.trim().toLowerCase();
+      this.renderList();
     });
 
-    this.renderList(listEl);
+    root.createDiv({ cls: 'bs-list' });
+    this.renderList();
 
     const formWrap = root.createDiv({ cls: 'bs-temp-form', attr: { style: 'display:none' } });
     this.buildTempForm(formWrap);
 
-    new Setting(root)
-      .addButton((b) => {
-        b.setButtonText('临时徽章').onClick(() => {
-          formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
-        });
-      })
-      .addButton((b) => {
-        b.setButtonText('固化本篇').onClick(() => void freezeActiveNote(this.plugin));
-      })
-      .addButton((b) => {
-        b.setButtonText('还原本篇').onClick(() => unfreezeActiveNote(this.plugin));
-      })
-      .addButton((b) => {
-        b.setButtonText('工作台').onClick(() => void this.plugin.revealManager());
-      })
-      .addButton((b) => {
-        b.setButtonText('打开设置').onClick(() => {
-          (this.app as unknown as { setting?: { openTabById: (id: string) => unknown } }).setting?.openTabById(this.plugin.manifest.id);
-        });
+    const footer = root.createDiv({ cls: 'bs-side-footer' });
+    new ButtonComponent(footer)
+      .setIcon('plus')
+      .setTooltip('临时徽章')
+      .onClick(() => {
+        formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
+      });
+    new ButtonComponent(footer)
+      .setIcon('image')
+      .setTooltip('固化本篇徽章为图片')
+      .onClick(() => void freezeActiveNote(this.plugin));
+    new ButtonComponent(footer)
+      .setIcon('undo-2')
+      .setTooltip('还原本篇徽章为标记')
+      .onClick(() => unfreezeActiveNote(this.plugin));
+    new ButtonComponent(footer)
+      .setIcon('layout-grid')
+      .setTooltip('打开徽章工作台')
+      .onClick(() => void this.plugin.revealManager());
+    new ButtonComponent(footer)
+      .setIcon('settings')
+      .setTooltip('打开设置')
+      .onClick(() => {
+        (this.app as unknown as { setting?: { openTabById: (id: string) => unknown } }).setting?.openTabById(this.plugin.manifest.id);
       });
   }
 
-  private renderList(listEl: HTMLElement): void {
+  private renderList(): void {
+    const listEl = this.containerEl.querySelector('.bs-list') as HTMLElement | null;
+    if (!listEl) return;
     listEl.empty();
     const badges = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
     const byGroup = new Map<string, BadgeDef[]>();
@@ -95,7 +102,11 @@ export class BadgeSidebarView extends ItemView {
     const order = [...byGroup.keys()].filter((g) => g !== '').sort();
     if (byGroup.has('')) order.push('');
     for (const g of order) {
-      if (g !== '') listEl.createDiv({ cls: 'bs-group-header', text: g });
+      if (g !== '') {
+        const h = listEl.createDiv({ cls: 'bs-group-header' });
+        setIcon(h.createSpan({ cls: 'bs-icon-inline' }), 'folder');
+        h.createSpan({ text: g });
+      }
       for (const badge of byGroup.get(g)!) {
         const row = listEl.createDiv({ cls: 'bs-row' });
         row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
@@ -111,7 +122,7 @@ export class BadgeSidebarView extends ItemView {
         row.onClickEvent(() => insertBadgeAtCursor(this.plugin, badge));
       }
     }
-    if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的标签' });
+    if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
   }
 
   private buildTempForm(wrap: HTMLElement): void {

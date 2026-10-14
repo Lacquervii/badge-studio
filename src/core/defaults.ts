@@ -17,6 +17,7 @@ export function defaultSettings(): BadgeSettings {
     assetsFolder: '徽章素材',
     defaultStyleId: 's001',
     groups: ['状态', '科目'],
+    refsPreview: true,
     styles,
     badges: [
       { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', link: '', group: '状态' },

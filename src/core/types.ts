@@ -19,6 +19,7 @@ export interface BadgeSettings {
   assetsFolder: string;
   defaultStyleId: string;
   groups: string[];
+  refsPreview: boolean;
   styles: StyleDef[];
   badges: BadgeDef[];
 }

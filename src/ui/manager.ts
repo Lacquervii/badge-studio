@@ -2,9 +2,10 @@ import { ButtonComponent, ItemView, Menu, Modal, Notice, SearchComponent, Settin
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { exportJson, mergeImport } from '../core/io.ts';
 import { PRESET_LEFT_BG, PRESET_STYLES } from '../core/presets.ts';
-import { findBadgeReferences } from '../core/refs.ts';
+import { findBadgeReferences, notePreview } from '../core/refs.ts';
 import type { BadgeRef } from '../core/refs.ts';
 import { markerText } from '../core/parse.ts';
+import { classifyLink } from '../core/resolve.ts';
 import type { BadgeDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
 import { ConfirmModal } from './confirm.ts';
@@ -196,11 +197,13 @@ class PresetModal extends Modal {
 export class BadgeManagerView extends ItemView {
   plugin: BadgePlugin;
   private unsubscribe: (() => void) | null = null;
-  private page: 'badges' | 'styles' = 'badges';
+  private page: 'badges' | 'detail' | 'styles' = 'badges';
   private currentGroup: string | null = null;
+  private detailBadgeId: string | null = null;
   private search = '';
   private density: 'grid' | 'list' = 'grid';
   private refs: Map<string, BadgeRef[]> | null = null;
+  private previewCache = new Map<string, string>();
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
     super(leaf);
@@ -229,7 +232,12 @@ export class BadgeManagerView extends ItemView {
   private async refreshRefs(): Promise<void> {
     const names = this.plugin.store.settings.badges.map((b) => b.name);
     this.refs = await findBadgeReferences(this.app, names);
-    this.renderContent();
+    this.renderMain();
+  }
+
+  private renderMain(): void {
+    if (this.page === 'detail') this.renderDetailBody();
+    else this.renderContent();
   }
 
   private dataUri(badge: BadgeDef): string {
@@ -251,6 +259,10 @@ export class BadgeManagerView extends ItemView {
     root.addClass('bs-mgr');
     if (this.page === 'styles') {
       this.renderStylesPage(root);
+      return;
+    }
+    if (this.page === 'detail') {
+      this.renderDetailPage(root);
       return;
     }
     this.renderHeader(root);
@@ -452,7 +464,7 @@ export class BadgeManagerView extends ItemView {
       }
     }
 
-    card.addEventListener('click', () => new BadgeEditModal(this.plugin, badge).open());
+    card.addEventListener('click', () => this.openDetail(badge));
     card.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       this.openCardMenu(e, badge);
@@ -478,9 +490,144 @@ export class BadgeManagerView extends ItemView {
     menu.showAtMouseEvent(e);
   }
 
+  private openDetail(badge: BadgeDef): void {
+    this.page = 'detail';
+    this.detailBadgeId = badge.id;
+    this.render();
+  }
+
+  private renderDetailPage(root: HTMLElement): void {
+    const badge = this.plugin.store.settings.badges.find((b) => b.id === this.detailBadgeId);
+    if (!badge) {
+      this.page = 'badges';
+      this.detailBadgeId = null;
+      this.render();
+      return;
+    }
+    const header = root.createDiv({ cls: 'bs-mgr-header' });
+    new ButtonComponent(header)
+      .setIcon('arrow-left')
+      .setTooltip('返回徽章库')
+      .onClick(() => {
+        this.page = 'badges';
+        this.detailBadgeId = null;
+        this.render();
+      });
+    const title = header.createDiv({ cls: 'bs-mgr-title' });
+    setIcon(title.createSpan({ cls: 'bs-mgr-logo' }), 'shield');
+    title.createSpan({ text: '徽章详情' });
+    new ButtonComponent(header)
+      .setIcon('pencil')
+      .setTooltip('编辑徽章')
+      .onClick(() => new BadgeEditModal(this.plugin, badge).open());
+    new ButtonComponent(header)
+      .setIcon('trash-2')
+      .setTooltip('删除徽章')
+      .onClick(() => this.deleteBadge(badge));
+    root.createDiv({ cls: 'bs-mgr-main' });
+    this.renderDetailBody();
+  }
+
+  private renderDetailBody(): void {
+    const main = this.containerEl.querySelector('.bs-mgr-main') as HTMLElement | null;
+    if (!main) return;
+    main.empty();
+    const badge = this.plugin.store.settings.badges.find((b) => b.id === this.detailBadgeId);
+    if (!badge) return;
+
+    const head = main.createDiv({ cls: 'bs-detail-head' });
+    const canvas = head.createDiv({ cls: 'bs-detail-canvas' });
+    canvas.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+    const info = head.createDiv({ cls: 'bs-detail-info' });
+    info.createDiv({ cls: 'bs-detail-name', text: badge.name });
+    if (badge.link !== '') {
+      const lk = classifyLink(badge.link);
+      const linkEl = info.createDiv({ cls: 'bs-detail-link' });
+      setIcon(linkEl.createSpan(), lk.kind === 'url' ? 'external-link' : 'link');
+      linkEl.createSpan({ text: badge.link });
+      linkEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (lk.kind === 'url') window.open(lk.url);
+        else if (lk.kind === 'note') void this.app.workspace.openLinkText(lk.name, '');
+      });
+    }
+
+    const styleSec = main.createDiv({ cls: 'bs-detail-section' });
+    styleSec.createEl('h4', { text: '样式' });
+    const style = this.plugin.store.styleOf(badge);
+    const box = styleSec.createDiv({ cls: 'bs-style-box' });
+    box.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
+    box.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
+    box.createSpan({ cls: 'bs-style-name', text: style.name });
+    box.createSpan({ cls: 'bs-n', text: `${style.leftBg} ／ ${style.rightBg}` });
+
+    const refsSec = main.createDiv({ cls: 'bs-detail-section' });
+    const refs = this.refs?.get(badge.name) ?? null;
+    const total = refs?.reduce((n, r) => n + r.count, 0) ?? 0;
+    const h4 = refsSec.createEl('h4');
+    h4.createSpan({ text: refs === null ? '引用（统计中…）' : `引用（${refs.length} 篇 · 共 ${total} 处）` });
+    if (refs !== null) {
+      new ButtonComponent(h4)
+        .setIcon(this.plugin.store.settings.refsPreview ? 'eye' : 'eye-off')
+        .setTooltip('显示 / 关闭引用预览')
+        .onClick(async () => {
+          this.plugin.store.settings.refsPreview = !this.plugin.store.settings.refsPreview;
+          await this.plugin.store.save();
+          this.renderDetailBody();
+        });
+      new ButtonComponent(h4)
+        .setIcon('refresh-cw')
+        .setTooltip('重新扫描引用')
+        .onClick(() => {
+          this.previewCache.clear();
+          void this.refreshRefs();
+        });
+    }
+    if (refs !== null && refs.length > 0) {
+      const listEl = refsSec.createDiv({ cls: 'bs-ref-list' });
+      const showPreview = this.plugin.store.settings.refsPreview;
+      for (const r of refs) {
+        const item = listEl.createDiv({ cls: 'bs-ref-item' });
+        item.createDiv({ cls: 'bs-ref-title', text: r.path.split('/').pop()?.replace(/\.md$/, '') ?? r.path });
+        item.createDiv({ cls: 'bs-ref-path', text: `${r.path} · ${r.count} 处` });
+        if (showPreview) {
+          const pv = item.createDiv({ cls: 'bs-ref-preview' });
+          const cached = this.previewCache.get(r.path);
+          if (cached !== undefined) pv.setText(cached);
+          else this.loadPreview(r.path, pv);
+        }
+        item.addEventListener('click', () => {
+          const file = this.app.vault.getAbstractFileByPath(r.path);
+          if (file instanceof TFile) void this.app.workspace.getLeaf('tab').openFile(file);
+        });
+      }
+    } else if (refs !== null) {
+      refsSec.createDiv({ cls: 'bs-empty', text: '还没有笔记引用这个徽章' });
+    }
+  }
+
+  private loadPreview(path: string, el: HTMLElement): void {
+    void notePreview(this.app, path)
+      .then((text) => {
+        this.previewCache.set(path, text);
+        if (el.isConnected) el.setText(text);
+      })
+      .catch(() => {
+        /* 读取失败时留空 */
+      });
+  }
+
   private deleteBadge(badge: BadgeDef): void {
     const refs = this.refs?.get(badge.name) ?? [];
-    const doDelete = (): void => void this.plugin.store.deleteBadge(badge.id);
+    const doDelete = (): void => {
+      void this.plugin.store.deleteBadge(badge.id).then(() => {
+        if (this.page === 'detail' && this.detailBadgeId === badge.id) {
+          this.page = 'badges';
+          this.detailBadgeId = null;
+        }
+        this.render();
+      });
+    };
     if (refs.length === 0) {
       doDelete();
       return;
