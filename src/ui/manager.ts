@@ -275,7 +275,8 @@ export class BadgeManagerView extends ItemView {
   private renderHeader(root: HTMLElement): void {
     const header = root.createDiv({ cls: 'bs-mgr-header' });
 
-    const search = new SearchComponent(header);
+    const searchWrap = header.createDiv({ cls: 'bs-mgr-search' });
+    const search = new SearchComponent(searchWrap);
     search.setPlaceholder('搜索徽章…');
     search.setValue(this.search);
     search.onChange((v) => {
@@ -283,12 +284,13 @@ export class BadgeManagerView extends ItemView {
       this.renderContent();
     });
 
-    new ButtonComponent(header)
+    const actions = header.createDiv({ cls: 'bs-mgr-actions' });
+    new ButtonComponent(actions)
       .setButtonText('新建徽章')
       .setCta()
       .onClick(() => new BadgeEditModal(this.plugin, null, this.currentGroup ?? undefined).open());
 
-    const more = new ButtonComponent(header).setIcon('more-horizontal').setTooltip('更多');
+    const more = new ButtonComponent(actions).setIcon('more-horizontal').setTooltip('更多');
     more.onClick((e) => {
       const menu = new Menu();
       menu.addItem((i) =>
