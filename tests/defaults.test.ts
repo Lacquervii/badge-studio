@@ -2,11 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultSettings, nextNumericId } from '../src/core/defaults.ts';
 
-test('默认设置：7 个样式、3 个标签、开关默认开', () => {
+test('默认设置：7 个样式、3 个标签', () => {
   const s = defaultSettings();
   assert.equal(s.styles.length, 7);
   assert.equal(s.badges.length, 3);
-  assert.equal(s.renderTags, true);
   assert.equal(s.assetsFolder, '徽章素材');
   assert.equal(s.defaultStyleId, 's001');
 });

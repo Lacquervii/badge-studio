@@ -17,6 +17,9 @@ export class BadgeStore {
     const data = await this.plugin.loadData();
     if (data && Array.isArray(data.styles) && Array.isArray(data.badges)) {
       this.settings = { ...defaultSettings(), ...(data as BadgeSettings) };
+      if (!Array.isArray((data as { groups?: unknown }).groups)) {
+        this.settings.groups = [...new Set(this.settings.badges.map((b) => b.group).filter((g) => g !== ''))].sort();
+      }
       for (const b of this.settings.badges) {
         if (typeof b.group !== 'string') b.group = '';
       }
@@ -55,9 +58,35 @@ export class BadgeStore {
   }
 
   groups(): string[] {
-    const set = new Set<string>();
+    const set = new Set<string>(this.settings.groups);
     for (const b of this.settings.badges) if (b.group !== '') set.add(b.group);
     return [...set].sort();
+  }
+
+  async addGroup(name: string): Promise<void> {
+    const n = name.trim();
+    if (n === '' || this.settings.groups.includes(n)) return;
+    this.settings.groups.push(n);
+    await this.save();
+  }
+
+  async renameGroup(oldName: string, newName: string): Promise<void> {
+    const n = newName.trim();
+    if (n === '' || n === oldName) return;
+    this.settings.groups = this.settings.groups.filter((g) => g !== oldName && g !== n);
+    this.settings.groups.push(n);
+    for (const b of this.settings.badges) {
+      if (b.group === oldName) b.group = n;
+    }
+    await this.save();
+  }
+
+  async clearGroup(name: string): Promise<void> {
+    this.settings.groups = this.settings.groups.filter((g) => g !== name);
+    for (const b of this.settings.badges) {
+      if (b.group === name) b.group = '';
+    }
+    await this.save();
   }
 
   styleUsage(styleId: string): number {

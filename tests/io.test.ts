@@ -39,7 +39,7 @@ test('mergeImport 新增并映射 styleId，重名跳过', () => {
 test('mergeImport 导入导出往返一致', () => {
   const a = defaultSettings();
   const b = defaultSettings();
-  b.badges.push({ id: '100', name: '独有徽章', leftText: '独', rightText: '有', styleId: 's002', tag: '', link: '', group: '测试' });
+  b.badges.push({ id: '100', name: '独有徽章', leftText: '独', rightText: '有', styleId: 's002', link: '', group: '测试' });
   const result = mergeImport(a, JSON.parse(exportJson(b)));
   assert.equal(result.error, undefined);
   assert.equal(result.badgesAdded, 1);

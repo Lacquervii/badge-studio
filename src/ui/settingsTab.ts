@@ -74,21 +74,20 @@ export class BadgeEditModal extends Modal {
   leftText = '';
   rightText = '';
   styleId: string;
-  tag = '';
   link = '';
   group = '';
 
-  constructor(plugin: BadgePlugin, existing: BadgeDef | null) {
+  constructor(plugin: BadgePlugin, existing: BadgeDef | null, presetGroup?: string) {
     super(plugin.app);
     this.plugin = plugin;
     this.existing = existing;
     this.styleId = plugin.store.settings.defaultStyleId;
+    if (presetGroup !== undefined) this.group = presetGroup;
     if (existing) {
       this.name = existing.name;
       this.leftText = existing.leftText;
       this.rightText = existing.rightText;
       this.styleId = existing.styleId;
-      this.tag = existing.tag;
       this.link = existing.link;
       this.group = existing.group;
     }
@@ -105,7 +104,6 @@ export class BadgeEditModal extends Modal {
       d.setValue(this.styleId);
       d.onChange((v) => (this.styleId = v));
     });
-    new Setting(contentEl).setName('对应 #标签（选填）').addText((t) => t.setValue(this.tag).onChange((v) => (this.tag = v.replace(/^#/, ''))));
     new Setting(contentEl).setName('链接（选填：网址或笔记名）').addText((t) => t.setValue(this.link).onChange((v) => (this.link = v)));
     new Setting(contentEl).setName('分组（选填）').addText((t) => {
       t.setValue(this.group).onChange((v) => (this.group = v.trim()));
@@ -117,7 +115,7 @@ export class BadgeEditModal extends Modal {
       b.setButtonText('保存').setCta();
       b.onClick(async () => {
         if (this.name.trim() === '' || this.rightText.trim() === '') return;
-        const patch = { name: this.name.trim(), leftText: this.leftText.trim(), rightText: this.rightText.trim(), styleId: this.styleId, tag: this.tag.trim(), link: this.link.trim(), group: this.group };
+        const patch = { name: this.name.trim(), leftText: this.leftText.trim(), rightText: this.rightText.trim(), styleId: this.styleId, link: this.link.trim(), group: this.group };
         if (this.existing) await this.plugin.store.updateBadge(this.existing.id, patch);
         else await this.plugin.store.addBadge(patch);
         this.close();
@@ -140,15 +138,7 @@ export class BadgeSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName('把 #标签 渲染成徽章').setDesc('实时渲染；关闭或卸载插件后 #标签 恢复原样').addToggle((t) => {
-      t.setValue(this.plugin.store.settings.renderTags);
-      t.onChange(async (v) => {
-        this.plugin.store.settings.renderTags = v;
-        await this.plugin.store.save();
-      });
-    });
-
-    new Setting(containerEl).setName('默认样式').setDesc('#标签 未匹配到条目时使用的样式').addDropdown((d) => {
+    new Setting(containerEl).setName('默认样式').setDesc('新建徽章、临时徽章未选样式时的默认配色；也是条目样式被删后的兜底').addDropdown((d) => {
       for (const s of this.plugin.store.settings.styles) d.addOption(s.id, s.name);
       d.setValue(this.plugin.store.settings.defaultStyleId);
       d.onChange(async (v) => {

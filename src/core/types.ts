@@ -11,15 +11,14 @@ export interface BadgeDef {
   leftText: string;
   rightText: string;
   styleId: string;
-  tag: string;
   link: string;
   group: string;
 }
 
 export interface BadgeSettings {
   assetsFolder: string;
-  renderTags: boolean;
   defaultStyleId: string;
+  groups: string[];
   styles: StyleDef[];
   badges: BadgeDef[];
 }

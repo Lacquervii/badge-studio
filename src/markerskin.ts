@@ -65,7 +65,7 @@ function buildDecorations(view: EditorView, plugin: BadgePlugin): DecorationSet 
     if (inCodeBlock(view, from)) continue;
     const badges = badgesForNames(plugin, run.names);
     if (!badges) continue;
-    deco.push(Decoration.replace({ widget: new RowWidget(plugin, badges) }).range(from, to));
+    deco.push(Decoration.replace({ widget: new RowWidget(plugin, badges), block: true }).range(from, to));
   }
   return Decoration.set(deco, true);
 }

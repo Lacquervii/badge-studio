@@ -10,25 +10,44 @@
 .bs-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-left: 6px; vertical-align: middle; border: 1px solid var(--background-modifier-border); }
 .bs-group-header { font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 8px 6px 2px; }
 
-/* 管理面板 */
+/* 徽章工作台 */
 .bs-mgr { padding: 12px 16px; overflow-y: auto; height: 100%; }
 .bs-mgr h3 { margin: 12px 0 8px; }
-.bs-mgr-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+.bs-mgr-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
 .bs-mgr-toolbar input[type='text'] { max-width: 180px; }
-.bs-mgr-group { border: 1px solid var(--background-modifier-border); border-radius: 8px; margin-bottom: 8px; }
-.bs-mgr-group > summary { cursor: pointer; padding: 8px 10px; font-weight: 600; user-select: none; }
-.bs-mgr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; padding: 0 10px 10px; }
+.bs-mgr-crumb { font-size: 13px; margin-bottom: 10px; color: var(--text-muted); }
+.bs-mgr-crumb a { color: var(--text-accent); cursor: pointer; text-decoration: none; }
+
+/* 文件夹卡片 */
+.bs-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.bs-folder { border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-primary); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.bs-folder-main { cursor: pointer; display: flex; flex-direction: column; gap: 8px; }
+.bs-folder-main:hover .bs-folder-name { color: var(--text-accent); }
+.bs-folder-head { display: flex; align-items: center; gap: 8px; }
+.bs-folder-icon { display: inline-flex; color: var(--text-muted); }
+.bs-folder-name { font-weight: 600; word-break: break-all; }
+.bs-folder-count { margin-left: auto; font-size: 12px; color: var(--text-muted); background: var(--background-secondary); border-radius: 10px; padding: 0 8px; }
+.bs-folder-previews { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 20px; }
+.bs-folder-actions { display: flex; gap: 6px; border-top: 1px solid var(--background-modifier-border); padding-top: 8px; }
+.bs-folder-actions button { padding: 2px 10px; font-size: 12px; }
+
+/* 徽章卡片 */
+.bs-mgr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
 .bs-mgr-card { border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--background-primary); }
 .bs-mgr-card-head { display: flex; align-items: center; gap: 8px; }
 .bs-mgr-card-name { font-weight: 600; word-break: break-all; }
 .bs-mgr-card-meta { font-size: 11px; color: var(--text-muted); }
 .bs-mgr-card-refs { font-size: 12px; color: var(--text-muted); user-select: none; }
 .bs-mgr-card-refs.is-clickable { color: var(--text-accent); cursor: pointer; }
-.bs-mgr-card-refs-list { display: flex; flex-direction: column; gap: 2px; font-size: 12px; padding-left: 8px; }
-.bs-mgr-card-refs-list a { color: var(--text-normal); cursor: pointer; text-decoration: none; }
-.bs-mgr-card-refs-list a:hover { color: var(--text-accent); }
 .bs-mgr-card-actions { display: flex; gap: 6px; }
 .bs-mgr-card-actions button { padding: 2px 10px; }
+
+/* 引用列表弹窗 */
+.bs-refs-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
+.bs-refs-list a { color: var(--text-normal); cursor: pointer; text-decoration: none; padding: 4px 6px; border-radius: 6px; }
+.bs-refs-list a:hover { background: var(--background-modifier-hover); color: var(--text-accent); }
+
+/* 样式库二级页 */
 .bs-mgr-style-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--background-modifier-border); }
 .bs-mgr-style-row .grow { flex: 1; }
 .bs-mgr-style-row .bs-swatch { margin-left: 0; }

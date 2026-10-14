@@ -1,5 +1,5 @@
-import { ItemView, Modal, Notice, Setting, TFile } from 'obsidian';
-import type { WorkspaceLeaf } from 'obsidian';
+import { ItemView, Modal, Notice, Setting, TFile, setIcon } from 'obsidian';
+import type { App, WorkspaceLeaf } from 'obsidian';
 import { exportJson, mergeImport } from '../core/io.ts';
 import { PRESET_LEFT_BG, PRESET_STYLES } from '../core/presets.ts';
 import { findBadgeReferences } from '../core/refs.ts';
@@ -11,7 +11,80 @@ import { BadgeEditModal, StyleEditModal } from './settingsTab.ts';
 
 export const MANAGER_VIEW_TYPE = 'badge-studio-manager';
 
-const GROUP_ALL = '*';
+const UNGROUPED = '';
+
+class TextPromptModal extends Modal {
+  private title: string;
+  private cta: string;
+  private initial: string;
+  private onSubmit: (v: string) => void;
+
+  constructor(app: App, title: string, cta: string, initial: string, onSubmit: (v: string) => void) {
+    super(app);
+    this.title = title;
+    this.cta = cta;
+    this.initial = initial;
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    this.setTitle(this.title);
+    let value = this.initial;
+    const submit = (): void => {
+      const v = value.trim();
+      if (v === '') return;
+      this.close();
+      this.onSubmit(v);
+    };
+    new Setting(contentEl).setName('名字').addText((t) => {
+      t.setValue(this.initial);
+      t.onChange((v) => (value = v));
+      t.inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submit();
+      });
+      t.inputEl.focus();
+    });
+    new Setting(contentEl).addButton((b) => b.setButtonText(this.cta).setCta().onClick(submit));
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+class RefsModal extends Modal {
+  private badgeName: string;
+  private refs: BadgeRef[];
+
+  constructor(app: App, badgeName: string, refs: BadgeRef[]) {
+    super(app);
+    this.badgeName = badgeName;
+    this.refs = refs;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    this.setTitle(`「${this.badgeName}」的引用`);
+    const total = this.refs.reduce((n, r) => n + r.count, 0);
+    contentEl.createEl('p', { cls: 'bs-empty', text: `${this.refs.length} 篇笔记，共 ${total} 处。点击跳转。` });
+    const listEl = contentEl.createDiv({ cls: 'bs-refs-list' });
+    for (const r of this.refs) {
+      const a = listEl.createEl('a', { text: `${r.path}（${r.count} 处）` });
+      a.addEventListener('click', () => {
+        const file = this.app.vault.getAbstractFileByPath(r.path);
+        if (file instanceof TFile) {
+          this.close();
+          void this.app.workspace.getLeaf('tab').openFile(file);
+        }
+      });
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
 
 class PresetModal extends Modal {
   plugin: BadgePlugin;
@@ -50,10 +123,10 @@ class PresetModal extends Modal {
 export class BadgeManagerView extends ItemView {
   plugin: BadgePlugin;
   private unsubscribe: (() => void) | null = null;
+  private page: 'badges' | 'styles' = 'badges';
+  private currentGroup: string | null = null;
   private search = '';
-  private groupFilter = GROUP_ALL;
   private refs: Map<string, BadgeRef[]> | null = null;
-  private expandedRefs = new Set<string>();
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
     super(leaf);
@@ -64,7 +137,7 @@ export class BadgeManagerView extends ItemView {
     return MANAGER_VIEW_TYPE;
   }
   getDisplayText(): string {
-    return '徽章管理';
+    return '徽章工作台';
   }
   getIcon(): string {
     return 'shield';
@@ -82,28 +155,29 @@ export class BadgeManagerView extends ItemView {
   private async refreshRefs(): Promise<void> {
     const names = this.plugin.store.settings.badges.map((b) => b.name);
     this.refs = await findBadgeReferences(this.app, names);
-    this.renderBody();
+    this.renderContent();
   }
 
   private dataUri(badge: BadgeDef): string {
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(this.plugin.store.buildSvg(badge));
   }
 
+  private folderExists(group: string): boolean {
+    if (group === UNGROUPED) return this.plugin.store.settings.badges.some((b) => b.group === UNGROUPED);
+    return this.plugin.store.groups().includes(group);
+  }
+
   private render(): void {
     const root = this.containerEl.children[1] as HTMLElement;
     root.empty();
     root.addClass('bs-mgr');
+    if (this.page === 'styles') {
+      this.renderStylesPage(root);
+      return;
+    }
     this.buildToolbar(root);
-    root.createDiv({ cls: 'bs-mgr-body' });
-    this.renderBody();
-  }
-
-  private renderBody(): void {
-    const body = this.containerEl.querySelector('.bs-mgr-body') as HTMLElement | null;
-    if (!body) return;
-    body.empty();
-    this.renderBadges(body);
-    this.renderStyles(body);
+    root.createDiv({ cls: 'bs-mgr-content' });
+    this.renderContent();
   }
 
   private buildToolbar(root: HTMLElement): void {
@@ -113,26 +187,7 @@ export class BadgeManagerView extends ItemView {
     search.value = this.search;
     search.addEventListener('input', () => {
       this.search = search.value.trim().toLowerCase();
-      this.renderBody();
-    });
-
-    const select = bar.createEl('select');
-    const groups = this.plugin.store.groups();
-    if (this.groupFilter !== GROUP_ALL && this.groupFilter !== '' && !groups.includes(this.groupFilter)) {
-      this.groupFilter = GROUP_ALL;
-    }
-    const options: Array<{ value: string; label: string }> = [
-      { value: GROUP_ALL, label: '全部分组' },
-      ...groups.map((g) => ({ value: g, label: g })),
-      { value: '', label: '未分组' },
-    ];
-    for (const o of options) {
-      const opt = select.createEl('option', { text: o.label, attr: { value: o.value } });
-      if (o.value === this.groupFilter) opt.selected = true;
-    }
-    select.addEventListener('change', () => {
-      this.groupFilter = select.value;
-      this.renderBody();
+      this.renderContent();
     });
 
     const btn = (text: string, onClick: () => void, cta = false): void => {
@@ -140,60 +195,143 @@ export class BadgeManagerView extends ItemView {
       if (cta) b.addClass('mod-cta');
       b.addEventListener('click', onClick);
     };
-    btn('新建徽章', () => new BadgeEditModal(this.plugin, null).open(), true);
-    btn('新建样式', () => new StyleEditModal(this.plugin, null).open());
-    btn('预设配色', () => new PresetModal(this.plugin).open());
+    btn('新建徽章', () => new BadgeEditModal(this.plugin, null, this.currentGroup ?? undefined).open(), true);
+    btn('新建分组', () => {
+      new TextPromptModal(this.app, '新建分组', '创建', '', (name) => {
+        void this.plugin.store.addGroup(name).then(() => {
+          this.currentGroup = name;
+          this.render();
+        });
+      }).open();
+    });
+    btn('样式库', () => {
+      this.page = 'styles';
+      this.render();
+    });
     btn('导入 JSON', () => this.pickImportFile());
     btn('导出 JSON', () => this.exportAll());
     btn('刷新统计', () => void this.refreshRefs());
   }
 
-  private filteredBadges(): BadgeDef[] {
-    return this.plugin.store.settings.badges.filter((b) => {
-      if (this.search !== '' && !b.name.toLowerCase().includes(this.search)) return false;
-      if (this.groupFilter === GROUP_ALL) return true;
-      return b.group === this.groupFilter;
-    });
-  }
-
-  private renderBadges(body: HTMLElement): void {
-    const badges = this.filteredBadges();
-    const byGroup = new Map<string, BadgeDef[]>();
-    for (const b of badges) {
-      const arr = byGroup.get(b.group) ?? [];
-      arr.push(b);
-      byGroup.set(b.group, arr);
-    }
-    const order = [...byGroup.keys()].filter((g) => g !== '').sort();
-    if (byGroup.has('')) order.push('');
-
-    body.createEl('h3', { text: `徽章库（${badges.length}）` });
-    if (badges.length === 0) {
-      body.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
+  private renderContent(): void {
+    const content = this.containerEl.querySelector('.bs-mgr-content') as HTMLElement | null;
+    if (!content) return;
+    content.empty();
+    if (this.search !== '') {
+      this.renderSearchResults(content);
       return;
     }
-    for (const g of order) {
-      const list = byGroup.get(g)!;
-      const section = body.createEl('details', { cls: 'bs-mgr-group' });
-      section.open = true;
-      section.createEl('summary', { text: `${g === '' ? '未分组' : g}（${list.length}）` });
-      const grid = section.createDiv({ cls: 'bs-mgr-grid' });
-      for (const badge of list) this.renderCard(grid, badge);
+    if (this.currentGroup !== null) {
+      if (!this.folderExists(this.currentGroup)) {
+        this.currentGroup = null;
+      } else {
+        this.renderGroupView(content, this.currentGroup);
+        return;
+      }
+    }
+    this.renderFolderGrid(content);
+  }
+
+  private renderBreadcrumb(content: HTMLElement, group: string): void {
+    const nav = content.createDiv({ cls: 'bs-mgr-crumb' });
+    const home = nav.createEl('a', { text: '全部徽章' });
+    home.addEventListener('click', () => {
+      this.currentGroup = null;
+      this.renderContent();
+    });
+    nav.createSpan({ text: ' ／ ' });
+    nav.createSpan({ text: group === UNGROUPED ? '未分组' : group });
+  }
+
+  private renderFolderGrid(content: HTMLElement): void {
+    const badges = this.plugin.store.settings.badges;
+    const grid = content.createDiv({ cls: 'bs-folder-grid' });
+    const folders: Array<{ group: string; list: BadgeDef[] }> = [];
+    for (const g of this.plugin.store.groups()) {
+      folders.push({ group: g, list: badges.filter((b) => b.group === g) });
+    }
+    const ungrouped = badges.filter((b) => b.group === UNGROUPED);
+    if (ungrouped.length > 0) folders.push({ group: UNGROUPED, list: ungrouped });
+
+    for (const f of folders) this.renderFolderCard(grid, f.group, f.list);
+    if (badges.length === 0 && folders.length === 0) {
+      content.createDiv({ cls: 'bs-empty', text: '还没有徽章，点右上角「新建徽章」开始' });
     }
   }
 
-  private renderCard(grid: HTMLElement, badge: BadgeDef): void {
+  private renderFolderCard(grid: HTMLElement, group: string, list: BadgeDef[]): void {
+    const card = grid.createDiv({ cls: 'bs-folder' });
+    const main = card.createDiv({ cls: 'bs-folder-main' });
+    const head = main.createDiv({ cls: 'bs-folder-head' });
+    const icon = head.createSpan({ cls: 'bs-folder-icon' });
+    setIcon(icon, group === UNGROUPED ? 'inbox' : 'folder');
+    head.createSpan({ cls: 'bs-folder-name', text: group === UNGROUPED ? '未分组' : group });
+    head.createSpan({ cls: 'bs-folder-count', text: `${list.length}` });
+    const previews = main.createDiv({ cls: 'bs-folder-previews' });
+    for (const badge of list.slice(0, 3)) {
+      previews.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+    }
+    if (list.length === 0) previews.createSpan({ cls: 'bs-empty', text: '空分组' });
+    main.addEventListener('click', () => {
+      this.currentGroup = group;
+      this.renderContent();
+    });
+
+    if (group !== UNGROUPED) {
+      const actions = card.createDiv({ cls: 'bs-folder-actions' });
+      const renameBtn = actions.createEl('button', { text: '重命名' });
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        new TextPromptModal(this.app, `重命名分组「${group}」`, '保存', group, (name) => {
+          void this.plugin.store.renameGroup(group, name).then(() => this.renderContent());
+        }).open();
+      });
+      const delBtn = actions.createEl('button', { text: '删除', cls: 'mod-warning' });
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const doDelete = (): void => {
+          void this.plugin.store.clearGroup(group).then(() => {
+            if (this.currentGroup === group) this.currentGroup = null;
+            this.renderContent();
+          });
+        };
+        if (list.length === 0) {
+          doDelete();
+        } else {
+          new ConfirmModal(this.app, `删除分组「${group}」？组内 ${list.length} 个徽章会移入「未分组」，不会被删除。`, doDelete).open();
+        }
+      });
+    }
+  }
+
+  private renderGroupView(content: HTMLElement, group: string): void {
+    this.renderBreadcrumb(content, group);
+    const list = this.plugin.store.settings.badges.filter((b) => b.group === group);
+    const grid = content.createDiv({ cls: 'bs-mgr-grid' });
+    for (const badge of list) this.renderCard(grid, badge, false);
+    if (list.length === 0) {
+      content.createDiv({ cls: 'bs-empty', text: '这个分组还没有徽章，点「新建徽章」会自动归入本组' });
+    }
+  }
+
+  private renderSearchResults(content: HTMLElement): void {
+    const list = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
+    content.createDiv({ cls: 'bs-empty', text: `搜索到 ${list.length} 个徽章` });
+    const grid = content.createDiv({ cls: 'bs-mgr-grid' });
+    for (const badge of list) this.renderCard(grid, badge, true);
+    if (list.length === 0) content.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
+  }
+
+  private renderCard(grid: HTMLElement, badge: BadgeDef, showGroup: boolean): void {
     const card = grid.createDiv({ cls: 'bs-mgr-card' });
 
     const head = card.createDiv({ cls: 'bs-mgr-card-head' });
     head.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
     head.createSpan({ cls: 'bs-mgr-card-name', text: badge.name });
 
-    const style = this.plugin.store.styleOf(badge);
-    const metaParts = [`样式：${style.name}`];
-    if (badge.tag !== '') metaParts.push(`#${badge.tag}`);
-    if (badge.link !== '') metaParts.push('含链接');
-    card.createDiv({ cls: 'bs-mgr-card-meta', text: metaParts.join(' · ') });
+    if (showGroup) {
+      card.createDiv({ cls: 'bs-mgr-card-meta', text: badge.group === UNGROUPED ? '未分组' : badge.group });
+    }
 
     const refsEl = card.createDiv({ cls: 'bs-mgr-card-refs' });
     if (this.refs === null) {
@@ -201,26 +339,10 @@ export class BadgeManagerView extends ItemView {
     } else {
       const refs = this.refs.get(badge.name) ?? [];
       const total = refs.reduce((n, r) => n + r.count, 0);
-      const open = this.expandedRefs.has(badge.id);
-      refsEl.setText(refs.length === 0 ? '未被引用' : `${open ? '▾' : '▸'} ${refs.length} 篇笔记引用（共 ${total} 处）`);
+      refsEl.setText(refs.length === 0 ? '未被引用' : `${refs.length} 篇笔记引用（共 ${total} 处）`);
       if (refs.length > 0) {
         refsEl.addClass('is-clickable');
-        refsEl.addEventListener('click', () => {
-          if (this.expandedRefs.has(badge.id)) this.expandedRefs.delete(badge.id);
-          else this.expandedRefs.add(badge.id);
-          this.renderBody();
-        });
-      }
-      if (open && refs.length > 0) {
-        const listEl = card.createDiv({ cls: 'bs-mgr-card-refs-list' });
-        for (const r of refs) {
-          const a = listEl.createEl('a', { text: `${r.path}（${r.count}）` });
-          a.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const file = this.app.vault.getAbstractFileByPath(r.path);
-            if (file instanceof TFile) void this.app.workspace.getLeaf('tab').openFile(file);
-          });
-        }
+        refsEl.addEventListener('click', () => new RefsModal(this.app, badge.name, refs).open());
       }
     }
 
@@ -245,10 +367,23 @@ export class BadgeManagerView extends ItemView {
     ).open();
   }
 
-  private renderStyles(body: HTMLElement): void {
-    body.createEl('h3', { text: `样式库（${this.plugin.store.settings.styles.length}）` });
+  private renderStylesPage(root: HTMLElement): void {
+    const bar = root.createDiv({ cls: 'bs-mgr-toolbar' });
+    const back = bar.createEl('button', { text: '← 返回徽章库' });
+    back.addEventListener('click', () => {
+      this.page = 'badges';
+      this.render();
+    });
+    const addBtn = bar.createEl('button', { text: '新建样式', cls: 'mod-cta' });
+    addBtn.addEventListener('click', () => new StyleEditModal(this.plugin, null).open());
+    const presetBtn = bar.createEl('button', { text: '预设配色' });
+    presetBtn.addEventListener('click', () => new PresetModal(this.plugin).open());
+
+    const content = root.createDiv({ cls: 'bs-mgr-content' });
+    content.createEl('h3', { text: `样式库（${this.plugin.store.settings.styles.length}）` });
+    content.createDiv({ cls: 'bs-empty', text: '改动样式后，使用它的徽章会全部自动重画。' });
     for (const style of this.plugin.store.settings.styles) {
-      const row = body.createDiv({ cls: 'bs-mgr-style-row' });
+      const row = content.createDiv({ cls: 'bs-mgr-style-row' });
       row.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
       row.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
       row.createSpan({ text: style.name });

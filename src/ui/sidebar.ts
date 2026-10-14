@@ -74,7 +74,7 @@ export class BadgeSidebarView extends ItemView {
         b.setButtonText('还原本篇').onClick(() => unfreezeActiveNote(this.plugin));
       })
       .addButton((b) => {
-        b.setButtonText('管理面板').onClick(() => void this.plugin.revealManager());
+        b.setButtonText('工作台').onClick(() => void this.plugin.revealManager());
       })
       .addButton((b) => {
         b.setButtonText('打开设置').onClick(() => {
@@ -135,7 +135,6 @@ export class BadgeSidebarView extends ItemView {
           leftText: leftText.trim(),
           rightText: rightText.trim(),
           styleId,
-          tag: '',
           link: '',
           group: '',
         });

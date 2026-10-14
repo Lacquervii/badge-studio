@@ -15,13 +15,13 @@ export function defaultSettings(): BadgeSettings {
 
   return {
     assetsFolder: '徽章素材',
-    renderTags: true,
     defaultStyleId: 's001',
+    groups: ['状态', '科目'],
     styles,
     badges: [
-      { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', tag: '', link: '', group: '状态' },
-      { id: '002', name: '科目-现代汉语', leftText: '科目', rightText: '现代汉语', styleId: 's004', tag: '', link: '', group: '科目' },
-      { id: '003', name: '单段-示例', leftText: '', rightText: '示例', styleId: 's005', tag: '', link: '', group: '' },
+      { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', link: '', group: '状态' },
+      { id: '002', name: '科目-现代汉语', leftText: '科目', rightText: '现代汉语', styleId: 's004', link: '', group: '科目' },
+      { id: '003', name: '单段-示例', leftText: '', rightText: '示例', styleId: 's005', link: '', group: '' },
     ],
   };
 }

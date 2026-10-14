@@ -74,7 +74,6 @@ export function mergeImport(settings: BadgeSettings, raw: unknown): ImportResult
       leftText: typeof cand.leftText === 'string' ? cand.leftText : '',
       rightText: cand.rightText.trim(),
       styleId: styleIdMap.get(oldStyleId) ?? settings.defaultStyleId,
-      tag: typeof cand.tag === 'string' ? cand.tag : '',
       link: typeof cand.link === 'string' ? cand.link : '',
       group: typeof cand.group === 'string' ? cand.group : '',
     };
