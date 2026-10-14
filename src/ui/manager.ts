@@ -275,10 +275,6 @@ export class BadgeManagerView extends ItemView {
   private renderHeader(root: HTMLElement): void {
     const header = root.createDiv({ cls: 'bs-mgr-header' });
 
-    const title = header.createDiv({ cls: 'bs-mgr-title' });
-    setIcon(title.createSpan({ cls: 'bs-mgr-logo' }), 'shield');
-    title.createSpan({ text: '徽章工作台' });
-
     const search = new SearchComponent(header);
     search.setPlaceholder('搜索徽章…');
     search.setValue(this.search);
@@ -402,14 +398,9 @@ export class BadgeManagerView extends ItemView {
 
     const all = this.plugin.store.settings.badges;
     let list = all;
-    let title = '';
-    if (this.currentGroup === null) {
-      title = `全部徽章 · ${all.length}`;
-    } else {
-      title = `${this.currentGroup === UNGROUPED ? '未分组' : this.currentGroup} · ${this.groupCount(this.currentGroup)}`;
+    if (this.currentGroup !== null) {
       list = all.filter((b) => b.group === this.currentGroup);
     }
-    main.createDiv({ cls: 'bs-section-title', text: title });
 
     if (list.length === 0) {
       const group = this.currentGroup;
@@ -449,19 +440,15 @@ export class BadgeManagerView extends ItemView {
     if (this.density === 'list' || this.search !== '') {
       meta.createSpan({ text: badge.group === UNGROUPED ? '未分组' : badge.group });
     }
-    const refsEl = meta.createSpan({ cls: 'bs-card-refs' });
-    if (this.refs === null) {
-      refsEl.setText('统计中…');
-    } else {
-      const refs = this.refs.get(badge.name) ?? [];
-      refsEl.setText(refs.length === 0 ? '未被引用' : `${refs.length} 篇引用`);
-      if (refs.length > 0) {
-        refsEl.addClass('is-clickable');
-        refsEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          new RefsModal(this.app, badge.name, refs).open();
-        });
-      }
+    const refs = this.refs?.get(badge.name) ?? [];
+    if (refs.length > 0) {
+      const refsEl = meta.createSpan({ cls: 'bs-ref-pill', text: `${refs.length}` });
+      refsEl.setAttribute('aria-label', `${refs.length} 篇笔记引用`);
+      refsEl.title = `${refs.length} 篇笔记引用`;
+      refsEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        new RefsModal(this.app, badge.name, refs).open();
+      });
     }
 
     card.addEventListener('click', () => this.openDetail(badge));

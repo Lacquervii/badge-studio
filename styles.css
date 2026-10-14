@@ -10,7 +10,10 @@
 .bs-chip { user-select: none; }
 .bs-marker-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .bs-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-left: 6px; vertical-align: middle; border: 1px solid var(--background-modifier-border); }
-.bs-group-header { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 8px 6px 2px; }
+.bs-group-header { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 8px 6px 2px; cursor: pointer; user-select: none; border-radius: 6px; }
+.bs-group-header:hover { color: var(--text-normal); }
+.bs-group-header .bs-chevron { display: inline-flex; color: var(--text-faint); }
+.bs-group-header .bs-count { margin-left: auto; color: var(--text-faint); font-weight: 400; }
 
 /* 徽章工作台 */
 .bs-mgr { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 0; }
@@ -40,13 +43,14 @@
 .bs-grid.is-list .bs-card-name { flex: 1; text-align: left; }
 
 /* 徽章卡片（不含操作按钮，右键出菜单） */
-.bs-card { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m, 8px); background: var(--background-primary); padding: 14px 12px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; }
+.bs-card { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m, 8px); background: var(--background-primary); padding: 12px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; }
 .bs-card:hover { border-color: var(--text-accent); box-shadow: 0 1px 8px rgba(0, 0, 0, 0.12); transform: translateY(-1px); }
-.bs-card-canvas { display: flex; align-items: center; justify-content: center; min-height: 40px; width: 100%; padding: 6px 8px; border-radius: var(--radius-s, 6px); }
+.bs-card-canvas { display: flex; align-items: center; justify-content: center; min-height: 40px; width: 100%; padding: 4px 8px; border-radius: var(--radius-s, 6px); }
 .bs-card-canvas img { max-width: 100%; }
 .bs-card-name { font-weight: 600; font-size: 13px; text-align: center; word-break: break-all; }
-.bs-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); }
-.bs-card-refs.is-clickable { color: var(--text-accent); cursor: pointer; }
+.bs-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); min-height: 18px; }
+.bs-ref-pill { font-size: 11px; line-height: 1.4; color: var(--text-accent); border: 1px solid var(--text-accent); border-radius: 10px; padding: 0 7px; cursor: pointer; }
+.bs-ref-pill:hover { background: var(--background-modifier-accent, rgba(0, 0, 0, 0.05)); }
 .bs-card-refs.is-clickable:hover { text-decoration: underline; }
 
 .bs-empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 56px 0; color: var(--text-muted); text-align: center; }

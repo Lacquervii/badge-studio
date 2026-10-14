@@ -13,6 +13,7 @@ export class BadgeSidebarView extends ItemView {
   plugin: BadgePlugin;
   private unsubscribe: (() => void) | null = null;
   private search = '';
+  private collapsedGroups = new Set<string>();
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
     super(leaf);
@@ -102,11 +103,18 @@ export class BadgeSidebarView extends ItemView {
     const order = [...byGroup.keys()].filter((g) => g !== '').sort();
     if (byGroup.has('')) order.push('');
     for (const g of order) {
-      if (g !== '') {
-        const h = listEl.createDiv({ cls: 'bs-group-header' });
-        setIcon(h.createSpan({ cls: 'bs-icon-inline' }), 'folder');
-        h.createSpan({ text: g });
-      }
+      const collapsed = this.collapsedGroups.has(g);
+      const h = listEl.createDiv({ cls: 'bs-group-header' });
+      setIcon(h.createSpan({ cls: 'bs-chevron' }), collapsed ? 'chevron-right' : 'chevron-down');
+      setIcon(h.createSpan({ cls: 'bs-icon-inline' }), g === '' ? 'inbox' : 'folder');
+      h.createSpan({ text: g === '' ? '未分组' : g });
+      h.createSpan({ cls: 'bs-count', text: `${byGroup.get(g)!.length}` });
+      h.onClickEvent(() => {
+        if (collapsed) this.collapsedGroups.delete(g);
+        else this.collapsedGroups.add(g);
+        this.renderList();
+      });
+      if (collapsed) continue;
       for (const badge of byGroup.get(g)!) {
         const row = listEl.createDiv({ cls: 'bs-row' });
         row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
