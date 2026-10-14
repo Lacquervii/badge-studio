@@ -20,7 +20,7 @@ export async function insertBadgeAtCursor(plugin: BadgePlugin, badge: BadgeDef):
     new Notice('徽章图片文件生成失败，请检查素材文件夹设置');
     return;
   }
-  const embed = app.fileManager.generateMarkdownLink(svgFile, view.file.path, undefined, true);
+  const embed = '!' + app.fileManager.generateMarkdownLink(svgFile, view.file.path);
   let text = embed;
   const lk = classifyLink(badge.link);
   if (lk.kind === 'url') {
@@ -48,7 +48,7 @@ export class BadgeInsertModal extends SuggestModal<BadgeDef> {
   renderSuggestion(badge: BadgeDef, el: HTMLElement): void {
     el.createSpan({ text: badge.name });
   }
-  onChooseItem(badge: BadgeDef): void {
+  onChooseSuggestion(badge: BadgeDef): void {
     void insertBadgeAtCursor(this.plugin, badge);
   }
 }
