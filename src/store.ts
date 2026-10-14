@@ -2,6 +2,7 @@ import type { TFile } from 'obsidian';
 import type { BadgePlugin } from './main.ts';
 import { defaultSettings, nextNumericId } from './core/defaults.ts';
 import { buildBadgeSvg, FONT_STACK } from './core/svg.ts';
+import { stripBadgeReferences } from './core/strip.ts';
 import type { BadgeDef, BadgeSettings, StyleDef } from './core/types.ts';
 
 export class BadgeStore {
@@ -148,8 +149,22 @@ export class BadgeStore {
   }
 
   async deleteBadge(id: string): Promise<void> {
+    const badge = this.settings.badges.find((b) => b.id === id);
     this.settings.badges = this.settings.badges.filter((b) => b.id !== id);
     await this.save();
+    if (badge) await this.stripReferences(badge);
+  }
+
+  /** 删除徽章后，把全库正文里的标记行和已固化图片一并清掉 */
+  private async stripReferences(badge: BadgeDef): Promise<void> {
+    const needleName = `badge: ${badge.name}`;
+    const needleSvg = `badge-${badge.id}.svg`;
+    for (const file of this.plugin.app.vault.getMarkdownFiles()) {
+      const text = await this.plugin.app.vault.cachedRead(file);
+      if (!text.includes(needleName) && !text.includes(needleSvg)) continue;
+      const next = stripBadgeReferences(text, badge.name, badge.id);
+      if (next !== text) await this.plugin.app.vault.modify(file, next);
+    }
   }
 
   async addStyle(partial: Omit<StyleDef, 'id'>): Promise<StyleDef> {

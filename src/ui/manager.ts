@@ -636,7 +636,7 @@ export class BadgeManagerView extends ItemView {
     }
     new ConfirmModal(
       this.app,
-      `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后正文里的标记会保留为纯文字、不再渲染。仍要删除吗？`,
+      `「${badge.name}」被 ${refs.length} 篇笔记引用。删除后徽章数据、正文里的标记和已固化的图片都会被移除。仍要删除吗？`,
       doDelete,
     ).open();
   }
