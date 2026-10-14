@@ -1,5 +1,6 @@
 import { Plugin } from 'obsidian';
 import { registerTagSkin } from './tagskin.ts';
+import { BadgeInsertModal } from './ui/insert.ts';
 import { BadgeStore } from './store.ts';
 
 export class BadgePlugin extends Plugin {
@@ -11,6 +12,11 @@ export class BadgePlugin extends Plugin {
     this.store = new BadgeStore(this);
     await this.store.load();
     registerTagSkin(this);
+    this.addCommand({
+      id: 'insert-badge',
+      name: '插入徽章：搜索并插入',
+      callback: () => new BadgeInsertModal(this).open(),
+    });
   }
 
   bump(): void {
