@@ -399,21 +399,39 @@ export class BadgeManagerView extends ItemView {
     }
 
     const all = this.plugin.store.settings.badges;
-    let list = all;
     if (this.currentGroup !== null) {
-      list = all.filter((b) => b.group === this.currentGroup);
-    }
-
-    if (list.length === 0) {
-      const group = this.currentGroup;
-      this.renderEmpty(
-        main,
-        group === null ? 'shield' : group === UNGROUPED ? 'inbox' : 'folder',
-        group === null ? '还没有徽章' : '这个分组还没有徽章',
-        '点右上角「新建徽章」，会自动归入当前分组',
-      );
+      const list = all.filter((b) => b.group === this.currentGroup);
+      if (list.length === 0) {
+        const group = this.currentGroup;
+        this.renderEmpty(
+          main,
+          group === UNGROUPED ? 'inbox' : 'folder',
+          '这个分组还没有徽章',
+          '点右上角「新建徽章」，会自动归入当前分组',
+        );
+        return;
+      }
+      this.renderGrid(main, list);
       return;
     }
+
+    if (all.length === 0) {
+      this.renderEmpty(main, 'shield', '还没有徽章', '点右上角「新建徽章」开始');
+      return;
+    }
+    for (const g of this.plugin.store.groups()) {
+      const list = all.filter((b) => b.group === g);
+      if (list.length === 0) continue;
+      this.renderGroupSection(main, g, list);
+    }
+    const ungrouped = all.filter((b) => b.group === UNGROUPED);
+    if (ungrouped.length > 0) this.renderGroupSection(main, UNGROUPED, ungrouped);
+  }
+
+  private renderGroupSection(main: HTMLElement, group: string, list: BadgeDef[]): void {
+    const title = main.createDiv({ cls: 'bs-group-section-title' });
+    setIcon(title.createSpan({ cls: 'bs-icon-inline' }), group === UNGROUPED ? 'inbox' : 'folder');
+    title.createSpan({ text: group === UNGROUPED ? '未分组' : group });
     this.renderGrid(main, list);
   }
 
@@ -427,39 +445,35 @@ export class BadgeManagerView extends ItemView {
 
   private renderGrid(main: HTMLElement, badges: BadgeDef[]): void {
     const grid = main.createDiv({ cls: `bs-grid${this.density === 'list' ? ' is-list' : ''}` });
-    for (const badge of badges) this.renderCard(grid, badge);
+    for (const badge of badges) this.renderTile(grid, badge);
   }
 
-  private renderCard(grid: HTMLElement, badge: BadgeDef): void {
-    const card = grid.createDiv({ cls: 'bs-card' });
+  /** 网格模式＝纯徽章磁贴（无名字/数量），列表模式＝徽章＋名字＋引用徽标 */
+  private renderTile(grid: HTMLElement, badge: BadgeDef): void {
+    const tile = grid.createDiv({ cls: 'bs-tile' });
+    const img = tile.createDiv({ cls: 'bs-tile-img' });
+    img.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
 
-    const canvas = card.createDiv({ cls: 'bs-card-canvas' });
-    canvas.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
-
-    card.createDiv({ cls: 'bs-card-name', text: badge.name });
-
-    const meta = card.createDiv({ cls: 'bs-card-meta' });
-    if (this.density === 'list' || this.search !== '') {
-      meta.createSpan({ text: badge.group === UNGROUPED ? '未分组' : badge.group });
-    }
-    const refs = this.refs?.get(badge.name) ?? [];
-    if (refs.length > 0) {
-      const refsEl = meta.createSpan({ cls: 'bs-ref-pill', text: `${refs.length}` });
-      refsEl.setAttribute('aria-label', `${refs.length} 篇笔记引用`);
-      refsEl.title = `${refs.length} 篇笔记引用`;
-      refsEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        new RefsModal(this.app, badge.name, refs).open();
-      });
+    if (this.density === 'list') {
+      tile.createDiv({ cls: 'bs-tile-name', text: badge.name });
+      const refs = this.refs?.get(badge.name) ?? [];
+      if (refs.length > 0) {
+        const pill = tile.createSpan({ cls: 'bs-ref-pill', text: `${refs.length}` });
+        pill.title = `${refs.length} 篇笔记引用`;
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          new RefsModal(this.app, badge.name, refs).open();
+        });
+      }
     }
 
-    card.addEventListener('click', () => this.openDetail(badge));
-    card.addEventListener('contextmenu', (e) => {
+    tile.addEventListener('click', () => this.openDetail(badge));
+    tile.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       this.openCardMenu(e, badge);
     });
-    card.setAttribute('draggable', 'true');
-    card.addEventListener('dragstart', (e) => {
+    tile.setAttribute('draggable', 'true');
+    tile.addEventListener('dragstart', (e) => {
       if (!e.dataTransfer) return;
       e.dataTransfer.setData(MOVE_MIME, badge.id);
       e.dataTransfer.effectAllowed = 'move';
@@ -534,7 +548,6 @@ export class BadgeManagerView extends ItemView {
     styleRow.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
     styleRow.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
     styleRow.createSpan({ cls: 'bs-style-name', text: style.name });
-    styleRow.createSpan({ cls: 'bs-n', text: `${style.leftBg} ／ ${style.rightBg}` });
     if (badge.link !== '') {
       const lk = classifyLink(badge.link);
       const linkEl = info.createDiv({ cls: 'bs-detail-link' });
