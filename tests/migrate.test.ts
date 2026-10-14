@@ -75,11 +75,8 @@ test('已有 logoLeft 时不再迁移，只补齐缺的位置', () => {
   assert.equal(badge.logoRight, '');
 });
 
-test('默认设置里的徽章已经自带颜色，与样式无关', () => {
+test('默认设置不带徽章：新装是空的，由用户自己建', () => {
   const s = defaultSettings();
-  for (const b of s.badges) {
-    assert.match(b.leftBg, /^#/);
-    assert.match(b.rightBg, /^#/);
-    assert.equal((b as BadgeDef & { styleId?: unknown }).styleId, undefined);
-  }
+  assert.equal(s.badges.length, 0);
+  assert.equal(s.styles.length, 7);
 });

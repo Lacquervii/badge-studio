@@ -405,7 +405,12 @@ export class BadgeSidebarView extends ItemView {
         });
       }
     }
-    if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
+    if (badges.length === 0) {
+      listEl.createDiv({
+        cls: 'bs-empty',
+        text: this.plugin.store.settings.badges.length === 0 ? '还没有徽章 —— 点下面的「+」建一个吧' : '没有匹配的徽章',
+      });
+    }
   }
 
   /** 右键菜单刚弹过 → 短时间内忽略随后的 click，避免误开详情页、误折叠分组 */

@@ -12,6 +12,23 @@ test('exportJson 导出 styles 与 badges', () => {
 
 test('mergeImport 新增并映射 styleId，重名跳过', () => {
   const settings = defaultSettings();
+  // 默认不再自带徽章，这里先放一枚用于验证「重名跳过」
+  settings.badges.push({
+    id: '001',
+    name: '状态-进行中',
+    leftText: '状态',
+    rightText: '进行中',
+    leftBg: '#555555',
+    rightBg: '#ffd400',
+    leftTextColor: '',
+    rightTextColor: '',
+    link: '',
+    group: '状态',
+    logoLeft: '',
+    logoLeftInner: '',
+    logoRightInner: '',
+    logoRight: '',
+  });
   const raw = {
     styles: [
       { id: 's900', name: '黄', leftBg: '#111111', rightBg: '#222222' },

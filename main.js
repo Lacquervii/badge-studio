@@ -556,11 +556,6 @@ var FALLBACK_PALETTE = {
   leftTextColor: "",
   rightTextColor: ""
 };
-function paletteOfStyle(styles, styleId) {
-  var _a;
-  const s = (_a = styles.find((x) => x.id === styleId)) != null ? _a : styles[0];
-  return { leftBg: s.leftBg, rightBg: s.rightBg, leftTextColor: s.leftTextColor, rightTextColor: s.rightTextColor };
-}
 function defaultSettings() {
   const styles = [
     { id: "s001", name: "\u9EC4", rightBg: "#ffd400" },
@@ -575,14 +570,11 @@ function defaultSettings() {
     assetsFolder: "\u5FBD\u7AE0\u7D20\u6750",
     defaultStyleId: "s001",
     sidebarView: "list",
-    groups: ["\u72B6\u6001"],
+    // 新装时留空：徽章由用户自己建，样式库只提供配色模板
+    groups: [],
     refsPreview: true,
     styles,
-    badges: [
-      { id: "001", name: "\u72B6\u6001-\u672A\u5F00\u59CB", leftText: "\u72B6\u6001", rightText: "\u672A\u5F00\u59CB", link: "", group: "\u72B6\u6001", logoLeft: "circle", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s007") },
-      { id: "002", name: "\u72B6\u6001-\u8FDB\u884C\u4E2D", leftText: "\u72B6\u6001", rightText: "\u8FDB\u884C\u4E2D", link: "", group: "\u72B6\u6001", logoLeft: "clock", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s001") },
-      { id: "003", name: "\u72B6\u6001-\u5DF2\u5B8C\u6210", leftText: "\u72B6\u6001", rightText: "\u5DF2\u5B8C\u6210", link: "", group: "\u72B6\u6001", logoLeft: "check-circle", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s002") }
-    ]
+    badges: []
   };
 }
 function nextNumericId(ids, withS) {
@@ -1812,7 +1804,12 @@ var BadgeSidebarView = class extends import_obsidian8.ItemView {
         });
       }
     }
-    if (badges.length === 0) listEl.createDiv({ cls: "bs-empty", text: "\u6CA1\u6709\u5339\u914D\u7684\u5FBD\u7AE0" });
+    if (badges.length === 0) {
+      listEl.createDiv({
+        cls: "bs-empty",
+        text: this.plugin.store.settings.badges.length === 0 ? "\u8FD8\u6CA1\u6709\u5FBD\u7AE0 \u2014\u2014 \u70B9\u4E0B\u9762\u7684\u300C+\u300D\u5EFA\u4E00\u4E2A\u5427" : "\u6CA1\u6709\u5339\u914D\u7684\u5FBD\u7AE0"
+      });
+    }
   }
   /** 右键菜单刚弹过 → 短时间内忽略随后的 click，避免误开详情页、误折叠分组 */
   menuJustOpened() {
