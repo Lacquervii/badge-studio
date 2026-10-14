@@ -58,25 +58,28 @@
 .bs-group-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--background-modifier-border); }
 .bs-group-row .grow { flex: 1; }
 
-/* 徽章详情页 */
-.bs-detail-head { display: flex; align-items: center; gap: 20px; padding: 8px 0 14px; border-bottom: 1px solid var(--background-modifier-border); }
-.bs-detail-canvas { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.bs-detail-canvas img { transform: scale(1.35); }
-.bs-detail-info { flex: 1; min-width: 0; }
-.bs-detail-name { font-size: 17px; font-weight: 700; word-break: break-all; }
-.bs-detail-style { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+/* 徽章详情页：纵向三段式（徽章大图 → 详情 → 引用笔记） */
+.bs-detail-head { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 16px 0 20px; border-bottom: 1px solid var(--background-modifier-border); }
+.bs-detail-canvas { display: flex; align-items: center; justify-content: center; }
+.bs-detail-canvas img { height: 40px; width: auto; }
+.bs-detail-name { font-size: 19px; font-weight: 700; word-break: break-all; }
+.bs-detail-style { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
 .bs-detail-style .bs-swatch { margin-left: 0; }
 .bs-detail-style .bs-style-name { color: var(--text-normal); font-weight: 600; }
-.bs-detail-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12px; color: var(--text-accent); cursor: pointer; word-break: break-all; }
-.bs-detail-section { margin-top: 16px; }
-.bs-detail-section h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.bs-detail-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-accent); cursor: pointer; word-break: break-all; }
+.bs-detail-link:hover { text-decoration: underline; }
+.bs-detail-section { margin-top: 18px; }
+.bs-detail-section h4 { margin: 0 0 10px; font-size: 13px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .bs-style-name { font-weight: 600; }
-.bs-ref-list { display: flex; flex-direction: column; gap: 8px; }
-.bs-ref-item { border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: border-color 0.12s ease; }
-.bs-ref-item:hover { border-color: var(--text-accent); }
-.bs-ref-title { font-weight: 600; font-size: 13px; }
+.bs-ref-list { display: flex; flex-direction: column; gap: 10px; }
+.bs-ref-item { border: 1px solid var(--background-modifier-border); border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.12s ease, background-color 0.12s ease; }
+.bs-ref-item:hover { border-color: var(--text-accent); background: var(--background-modifier-hover); }
+.bs-ref-head { display: flex; align-items: center; gap: 8px; }
+.bs-ref-head .bs-ref-icon { display: inline-flex; color: var(--text-muted); flex-shrink: 0; }
+.bs-ref-title { font-weight: 600; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-ref-badge { flex-shrink: 0; font-size: 11px; color: var(--text-muted); background: var(--background-secondary); border-radius: 10px; padding: 1px 8px; }
 .bs-ref-path { font-size: 11px; color: var(--text-faint); word-break: break-all; }
-.bs-ref-preview { font-size: 12px; color: var(--text-muted); }
+.bs-ref-preview { font-size: 13px; line-height: 1.6; color: var(--text-muted); }
 
 /* 引用列表弹窗 */
 .bs-refs-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }

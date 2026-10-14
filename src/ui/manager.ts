@@ -585,8 +585,11 @@ export class BadgeManagerView extends ItemView {
       const showPreview = this.plugin.store.settings.refsPreview;
       for (const r of refs) {
         const item = listEl.createDiv({ cls: 'bs-ref-item' });
-        item.createDiv({ cls: 'bs-ref-title', text: r.path.split('/').pop()?.replace(/\.md$/, '') ?? r.path });
-        item.createDiv({ cls: 'bs-ref-path', text: `${r.path} · ${r.count} 处` });
+        const head = item.createDiv({ cls: 'bs-ref-head' });
+        setIcon(head.createSpan({ cls: 'bs-ref-icon' }), 'file-text');
+        head.createDiv({ cls: 'bs-ref-title', text: r.path.split('/').pop()?.replace(/\.md$/, '') ?? r.path });
+        head.createSpan({ cls: 'bs-ref-badge', text: `${r.count} 处` });
+        item.createDiv({ cls: 'bs-ref-path', text: r.path });
         if (showPreview) {
           const pv = item.createDiv({ cls: 'bs-ref-preview' });
           const cached = this.previewCache.get(r.path);
