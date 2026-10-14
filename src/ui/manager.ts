@@ -389,7 +389,7 @@ export class BadgeManagerView extends ItemView {
         this.renderEmpty(main, 'search', '没有匹配的徽章', '换个关键词试试');
         return;
       }
-      this.renderGrid(main, list);
+      this.renderGrid(main, list, true);
       return;
     }
 
@@ -411,7 +411,7 @@ export class BadgeManagerView extends ItemView {
         );
         return;
       }
-      this.renderGrid(main, list);
+      this.renderGrid(main, list, this.density === 'list');
       return;
     }
 
@@ -432,7 +432,7 @@ export class BadgeManagerView extends ItemView {
     const title = main.createDiv({ cls: 'bs-group-section-title' });
     setIcon(title.createSpan({ cls: 'bs-icon-inline' }), group === UNGROUPED ? 'inbox' : 'folder');
     title.createSpan({ text: group === UNGROUPED ? '未分组' : group });
-    this.renderGrid(main, list);
+    this.renderGrid(main, list, this.density === 'list');
   }
 
   private renderEmpty(main: HTMLElement, icon: string, title: string, desc: string): void {
@@ -443,18 +443,18 @@ export class BadgeManagerView extends ItemView {
     box.createDiv({ cls: 'bs-empty-desc', text: desc });
   }
 
-  private renderGrid(main: HTMLElement, badges: BadgeDef[]): void {
-    const grid = main.createDiv({ cls: `bs-grid${this.density === 'list' ? ' is-list' : ''}` });
-    for (const badge of badges) this.renderTile(grid, badge);
+  private renderGrid(main: HTMLElement, badges: BadgeDef[], showName: boolean): void {
+    const flow = main.createDiv({ cls: `bs-badge-flow${showName ? ' is-list' : ''}` });
+    for (const badge of badges) this.renderTile(flow, badge, showName);
   }
 
-  /** 网格模式＝纯徽章磁贴（无名字/数量），列表模式＝徽章＋名字＋引用徽标 */
-  private renderTile(grid: HTMLElement, badge: BadgeDef): void {
-    const tile = grid.createDiv({ cls: 'bs-tile' });
+  /** 徽章直接贴底排列（无框线）；showName 时附带名字与引用徽标 */
+  private renderTile(flow: HTMLElement, badge: BadgeDef, showName: boolean): void {
+    const tile = flow.createDiv({ cls: 'bs-tile' });
     const img = tile.createDiv({ cls: 'bs-tile-img' });
     img.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
 
-    if (this.density === 'list') {
+    if (showName) {
       tile.createDiv({ cls: 'bs-tile-name', text: badge.name });
       const refs = this.refs?.get(badge.name) ?? [];
       if (refs.length > 0) {

@@ -3,7 +3,6 @@ import type { WorkspaceLeaf } from 'obsidian';
 import { BADGE_MIME } from '../drop.ts';
 import { markerText } from '../core/parse.ts';
 import type { BadgeDef } from '../core/types.ts';
-import { freezeActiveNote, unfreezeActiveNote } from '../freeze.ts';
 import type { BadgePlugin } from '../main.ts';
 import { insertBadgeAtCursor } from './insert.ts';
 
@@ -70,23 +69,9 @@ export class BadgeSidebarView extends ItemView {
         formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
       });
     new ButtonComponent(footer)
-      .setIcon('image')
-      .setTooltip('固化本篇徽章为图片')
-      .onClick(() => void freezeActiveNote(this.plugin));
-    new ButtonComponent(footer)
-      .setIcon('undo-2')
-      .setTooltip('还原本篇徽章为标记')
-      .onClick(() => unfreezeActiveNote(this.plugin));
-    new ButtonComponent(footer)
       .setIcon('layout-grid')
       .setTooltip('打开徽章工作台')
       .onClick(() => void this.plugin.revealManager());
-    new ButtonComponent(footer)
-      .setIcon('settings')
-      .setTooltip('打开设置')
-      .onClick(() => {
-        (this.app as unknown as { setting?: { openTabById: (id: string) => unknown } }).setting?.openTabById(this.plugin.manifest.id);
-      });
   }
 
   private renderList(): void {
