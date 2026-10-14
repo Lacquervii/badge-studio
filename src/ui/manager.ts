@@ -540,6 +540,12 @@ export class BadgeManagerView extends ItemView {
     canvas.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
     const info = head.createDiv({ cls: 'bs-detail-info' });
     info.createDiv({ cls: 'bs-detail-name', text: badge.name });
+    const style = this.plugin.store.styleOf(badge);
+    const styleRow = info.createDiv({ cls: 'bs-detail-style' });
+    styleRow.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
+    styleRow.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
+    styleRow.createSpan({ cls: 'bs-style-name', text: style.name });
+    styleRow.createSpan({ cls: 'bs-n', text: `${style.leftBg} ／ ${style.rightBg}` });
     if (badge.link !== '') {
       const lk = classifyLink(badge.link);
       const linkEl = info.createDiv({ cls: 'bs-detail-link' });
@@ -551,15 +557,6 @@ export class BadgeManagerView extends ItemView {
         else if (lk.kind === 'note') void this.app.workspace.openLinkText(lk.name, '');
       });
     }
-
-    const styleSec = main.createDiv({ cls: 'bs-detail-section' });
-    styleSec.createEl('h4', { text: '样式' });
-    const style = this.plugin.store.styleOf(badge);
-    const box = styleSec.createDiv({ cls: 'bs-style-box' });
-    box.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
-    box.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
-    box.createSpan({ cls: 'bs-style-name', text: style.name });
-    box.createSpan({ cls: 'bs-n', text: `${style.leftBg} ／ ${style.rightBg}` });
 
     const refsSec = main.createDiv({ cls: 'bs-detail-section' });
     const refs = this.refs?.get(badge.name) ?? null;

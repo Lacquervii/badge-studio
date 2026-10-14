@@ -1,14 +1,16 @@
-.bs-sidebar { padding: 8px; }
-.bs-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.bs-sidebar { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 0; }
+.bs-side-header { padding: 10px 10px 6px; }
+.bs-side-footer { display: flex; align-items: center; gap: 2px; border-top: 1px solid var(--background-modifier-border); padding: 4px 6px; }
+.bs-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 10px 8px; }
 .bs-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
 .bs-row:hover { background: var(--background-modifier-hover); }
 .bs-row img { flex-shrink: 0; }
 .bs-empty { color: var(--text-muted); font-size: 12px; padding: 8px; }
-.bs-temp-form { border-top: 1px solid var(--background-modifier-border); margin-top: 8px; padding-top: 4px; }
+.bs-temp-form { padding: 6px 10px 10px; border-top: 1px solid var(--background-modifier-border); }
 .bs-chip { user-select: none; }
 .bs-marker-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .bs-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-left: 6px; vertical-align: middle; border: 1px solid var(--background-modifier-border); }
-.bs-group-header { font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 8px 6px 2px; }
+.bs-group-header { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 8px 6px 2px; }
 
 /* 徽章工作台 */
 .bs-mgr { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 0; }
@@ -40,7 +42,7 @@
 /* 徽章卡片（不含操作按钮，右键出菜单） */
 .bs-card { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m, 8px); background: var(--background-primary); padding: 14px 12px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease; }
 .bs-card:hover { border-color: var(--text-accent); box-shadow: 0 1px 8px rgba(0, 0, 0, 0.12); transform: translateY(-1px); }
-.bs-card-canvas { display: flex; align-items: center; justify-content: center; min-height: 40px; width: 100%; padding: 6px 8px; border-radius: var(--radius-s, 6px); background: var(--background-secondary); }
+.bs-card-canvas { display: flex; align-items: center; justify-content: center; min-height: 40px; width: 100%; padding: 6px 8px; border-radius: var(--radius-s, 6px); }
 .bs-card-canvas img { max-width: 100%; }
 .bs-card-name { font-weight: 600; font-size: 13px; text-align: center; word-break: break-all; }
 .bs-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); }
@@ -55,6 +57,26 @@
 /* 分组管理弹窗 */
 .bs-group-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--background-modifier-border); }
 .bs-group-row .grow { flex: 1; }
+
+/* 徽章详情页 */
+.bs-detail-head { display: flex; align-items: center; gap: 20px; padding: 8px 0 14px; border-bottom: 1px solid var(--background-modifier-border); }
+.bs-detail-canvas { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.bs-detail-canvas img { transform: scale(1.35); }
+.bs-detail-info { flex: 1; min-width: 0; }
+.bs-detail-name { font-size: 17px; font-weight: 700; word-break: break-all; }
+.bs-detail-style { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+.bs-detail-style .bs-swatch { margin-left: 0; }
+.bs-detail-style .bs-style-name { color: var(--text-normal); font-weight: 600; }
+.bs-detail-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12px; color: var(--text-accent); cursor: pointer; word-break: break-all; }
+.bs-detail-section { margin-top: 16px; }
+.bs-detail-section h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.bs-style-name { font-weight: 600; }
+.bs-ref-list { display: flex; flex-direction: column; gap: 8px; }
+.bs-ref-item { border: 1px solid var(--background-modifier-border); border-radius: 8px; padding: 8px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: border-color 0.12s ease; }
+.bs-ref-item:hover { border-color: var(--text-accent); }
+.bs-ref-title { font-weight: 600; font-size: 13px; }
+.bs-ref-path { font-size: 11px; color: var(--text-faint); word-break: break-all; }
+.bs-ref-preview { font-size: 12px; color: var(--text-muted); }
 
 /* 引用列表弹窗 */
 .bs-refs-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
