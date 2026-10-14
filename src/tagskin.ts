@@ -1,6 +1,6 @@
-import { syntaxTree } from '@codemirror/language';
 import { Decoration, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet, EditorView, ViewUpdate } from '@codemirror/view';
+import { inCodeBlock } from './cm.ts';
 import { matchBadgeForTag } from './core/resolve.ts';
 import type { ChipSpec } from './core/types.ts';
 import type { BadgePlugin } from './main.ts';
@@ -34,15 +34,6 @@ class ChipWidget extends WidgetType {
   ignoreEvent(): boolean {
     return true;
   }
-}
-
-function inCodeBlock(view: EditorView, pos: number): boolean {
-  let node = syntaxTree(view.state).resolveInner(pos, 1);
-  while (node) {
-    if (/code|math|comment/i.test(node.name)) return true;
-    node = node.parent as typeof node;
-  }
-  return false;
 }
 
 function buildDecorations(view: EditorView, plugin: BadgePlugin): DecorationSet {

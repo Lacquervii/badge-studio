@@ -1,8 +1,10 @@
 import { ItemView, Setting } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
+import { markerText } from '../core/parse.ts';
 import type { BadgeDef } from '../core/types.ts';
+import { freezeActiveNote, unfreezeActiveNote } from '../freeze.ts';
 import type { BadgePlugin } from '../main.ts';
-import { insertBadgeAtCursor, badgeMarkdownSync } from './insert.ts';
+import { insertBadgeAtCursor } from './insert.ts';
 
 export const SIDEBAR_VIEW_TYPE = 'badge-studio-sidebar';
 
@@ -65,6 +67,12 @@ export class BadgeSidebarView extends ItemView {
         });
       })
       .addButton((b) => {
+        b.setButtonText('固化本篇').onClick(() => void freezeActiveNote(this.plugin));
+      })
+      .addButton((b) => {
+        b.setButtonText('还原本篇').onClick(() => unfreezeActiveNote(this.plugin));
+      })
+      .addButton((b) => {
         b.setButtonText('打开设置').onClick(() => {
           (this.app as unknown as { setting?: { openTabById: (id: string) => unknown } }).setting?.openTabById(this.plugin.manifest.id);
         });
@@ -80,13 +88,12 @@ export class BadgeSidebarView extends ItemView {
       row.createSpan({ text: badge.name });
       row.setAttribute('draggable', 'true');
       row.addEventListener('dragstart', (e) => {
-        const t = badgeMarkdownSync(this.plugin, badge);
-        if (t && e.dataTransfer) {
-          e.dataTransfer.setData('text/plain', t);
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('text/plain', markerText(badge.name));
           e.dataTransfer.effectAllowed = 'copy';
         }
       });
-      row.onClickEvent(() => void insertBadgeAtCursor(this.plugin, badge));
+      row.onClickEvent(() => insertBadgeAtCursor(this.plugin, badge));
     }
     if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的标签' });
   }
@@ -115,7 +122,7 @@ export class BadgeSidebarView extends ItemView {
           tag: '',
           link: '',
         });
-        await insertBadgeAtCursor(this.plugin, badge);
+        insertBadgeAtCursor(this.plugin, badge);
       });
     });
   }

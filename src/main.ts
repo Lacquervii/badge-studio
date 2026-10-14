@@ -1,4 +1,6 @@
 import { Plugin } from 'obsidian';
+import { freezeActiveNote, unfreezeActiveNote } from './freeze.ts';
+import { registerMarkerSkin } from './markerskin.ts';
 import { registerTagSkin } from './tagskin.ts';
 import { BadgeInsertModal } from './ui/insert.ts';
 import { BadgeSidebarView, SIDEBAR_VIEW_TYPE } from './ui/sidebar.ts';
@@ -14,10 +16,21 @@ export class BadgePlugin extends Plugin {
     this.store = new BadgeStore(this);
     await this.store.load();
     registerTagSkin(this);
+    registerMarkerSkin(this);
     this.addCommand({
       id: 'insert-badge',
       name: '插入徽章：搜索并插入',
       callback: () => new BadgeInsertModal(this).open(),
+    });
+    this.addCommand({
+      id: 'freeze-badges',
+      name: '固化本篇徽章为图片（耐用形态）',
+      callback: () => void freezeActiveNote(this),
+    });
+    this.addCommand({
+      id: 'unfreeze-badges',
+      name: '还原本篇徽章为标记',
+      callback: () => unfreezeActiveNote(this),
     });
     this.registerView(SIDEBAR_VIEW_TYPE, (leaf) => new BadgeSidebarView(leaf, this));
     this.addRibbonIcon('shield', '徽章工坊：插入徽章', () => void this.revealSidebar());
