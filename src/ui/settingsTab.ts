@@ -1,6 +1,7 @@
 import { App, Modal, PluginSettingTab, Setting } from 'obsidian';
 import type { BadgeDef, StyleDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
+import { insertBadgeAtCursor } from './insert.ts';
 
 function addColor(control: HTMLElement, value: string, onChange: (v: string) => void): void {
   const picker = control.createEl('input', { attr: { type: 'color', value } });
@@ -142,7 +143,7 @@ export class BadgeEditModal extends Modal {
 
   onOpen(): void {
     const { contentEl } = this;
-    this.setTitle(this.existing ? '编辑标签' : '新建标签');
+    this.setTitle(this.existing ? '编辑徽章' : '新建徽章');
     new Setting(contentEl).setName('名字（用于搜索/列表）').addText((t) => t.setValue(this.name).onChange((v) => (this.name = v)));
     new Setting(contentEl).setName('左字（留空＝单段）').addText((t) => t.setValue(this.leftText).onChange((v) => (this.leftText = v)));
     new Setting(contentEl).setName('右字').addText((t) => t.setValue(this.rightText).onChange((v) => (this.rightText = v)));
@@ -158,16 +159,29 @@ export class BadgeEditModal extends Modal {
     });
     const dl = contentEl.createEl('datalist', { attr: { id: 'bs-group-datalist' } });
     for (const g of this.plugin.store.groups()) dl.createEl('option', { attr: { value: g } });
-    new Setting(contentEl).addButton((b) => {
-      b.setButtonText('保存').setCta();
-      b.onClick(async () => {
-        if (this.name.trim() === '' || this.rightText.trim() === '') return;
-        const patch = { name: this.name.trim(), leftText: this.leftText.trim(), rightText: this.rightText.trim(), styleId: this.styleId, link: this.link.trim(), group: this.group };
-        if (this.existing) await this.plugin.store.updateBadge(this.existing.id, patch);
-        else await this.plugin.store.addBadge(patch);
-        this.close();
-      });
-    });
+    const submit = async (insert: boolean): Promise<void> => {
+      if (this.name.trim() === '' || this.rightText.trim() === '') return;
+      const patch = {
+        name: this.name.trim(),
+        leftText: this.leftText.trim(),
+        rightText: this.rightText.trim(),
+        styleId: this.styleId,
+        link: this.link.trim(),
+        group: this.group,
+      };
+      let badge: BadgeDef;
+      if (this.existing) {
+        await this.plugin.store.updateBadge(this.existing.id, patch);
+        badge = { ...this.existing, ...patch };
+      } else {
+        badge = await this.plugin.store.addBadge(patch);
+      }
+      this.close();
+      if (insert) insertBadgeAtCursor(this.plugin, badge);
+    };
+    new Setting(contentEl)
+      .addButton((b) => b.setButtonText('保存').onClick(() => void submit(false)))
+      .addButton((b) => b.setButtonText('保存并插入').setCta().onClick(() => void submit(true)));
   }
   onClose(): void {
     this.contentEl.empty();

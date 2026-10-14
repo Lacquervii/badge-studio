@@ -255,9 +255,7 @@ export class BadgeSidebarView extends ItemView {
     this.renderHeader(root);
     root.createDiv({ cls: 'bs-list' });
     this.renderList();
-    const formWrap = root.createDiv({ cls: 'bs-temp-form', attr: { style: 'display:none' } });
-    this.buildTempForm(formWrap);
-    this.renderFooter(root, formWrap);
+    this.renderFooter(root);
   }
 
   private renderHeader(root: HTMLElement): void {
@@ -279,14 +277,8 @@ export class BadgeSidebarView extends ItemView {
     });
   }
 
-  private renderFooter(root: HTMLElement, formWrap: HTMLElement): void {
+  private renderFooter(root: HTMLElement): void {
     const footer = root.createDiv({ cls: 'bs-side-footer' });
-    new ButtonComponent(footer)
-      .setIcon('plus')
-      .setTooltip('临时徽章')
-      .onClick(() => {
-        formWrap.style.display = formWrap.style.display === 'none' ? 'block' : 'none';
-      });
     new ButtonComponent(footer)
       .setIcon('circle-plus')
       .setTooltip('新建徽章')
@@ -425,35 +417,6 @@ export class BadgeSidebarView extends ItemView {
       }),
     );
     menu.showAtMouseEvent(e);
-  }
-
-  private buildTempForm(wrap: HTMLElement): void {
-    let leftText = '';
-    let rightText = '';
-    let styleId = this.plugin.store.settings.defaultStyleId;
-    new Setting(wrap).setName('左字（留空＝单段）').addText((t) => t.onChange((v) => (leftText = v)));
-    new Setting(wrap).setName('右字').addText((t) => t.onChange((v) => (rightText = v)));
-    new Setting(wrap).setName('样式').addDropdown((d) => {
-      for (const s of this.plugin.store.settings.styles) d.addOption(s.id, s.name);
-      d.setValue(styleId);
-      d.onChange((v) => (styleId = v));
-    });
-    new Setting(wrap).addButton((b) => {
-      b.setButtonText('生成并插入').setCta();
-      b.onClick(async () => {
-        if (rightText.trim() === '') return;
-        const n = this.plugin.store.settings.badges.filter((x) => x.name.startsWith('临时')).length + 1;
-        const badge = await this.plugin.store.addBadge({
-          name: `临时 ${n}`,
-          leftText: leftText.trim(),
-          rightText: rightText.trim(),
-          styleId,
-          link: '',
-          group: '',
-        });
-        insertBadgeAtCursor(this.plugin, badge);
-      });
-    });
   }
 
   private renderStylesPage(root: HTMLElement): void {
