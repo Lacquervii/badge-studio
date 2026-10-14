@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { MarkdownView, Plugin } from 'obsidian';
 import { registerBadgeDrop } from './drop.ts';
 import { freezeActiveNote, unfreezeActiveNote } from './freeze.ts';
 import { registerMarkerSkin } from './markerskin.ts';
@@ -10,11 +10,20 @@ import { BadgeStore } from './store.ts';
 export class BadgePlugin extends Plugin {
   store!: BadgeStore;
   version = 0;
+  /** 最近一次处于前台的 Markdown 笔记视图（点侧栏后活动视图会切到侧栏，靠它回退） */
+  lastMarkdownView: MarkdownView | null = null;
   private listeners: Array<() => void> = [];
 
   async onload(): Promise<void> {
     this.store = new BadgeStore(this);
     await this.store.load();
+    this.lastMarkdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    this.registerEvent(
+      this.app.workspace.on('active-leaf-change', (leaf) => {
+        const view = leaf?.view;
+        if (view instanceof MarkdownView && view.file) this.lastMarkdownView = view;
+      }),
+    );
     registerMarkerSkin(this);
     registerBadgeDrop(this);
     this.addCommand({

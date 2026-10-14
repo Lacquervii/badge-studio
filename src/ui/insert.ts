@@ -3,8 +3,21 @@ import { markerText } from '../core/parse.ts';
 import type { BadgeDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
 
+/** 侧栏被点开时活动视图会变成侧栏，回退到最近使用的 Markdown 笔记 */
+function resolveMarkdownView(plugin: BadgePlugin): MarkdownView | null {
+  const active = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+  if (active?.file) return active;
+  const last = plugin.lastMarkdownView;
+  if (last?.file && plugin.app.workspace.getLeavesOfType('markdown').some((l) => l === last.leaf)) return last;
+  for (const leaf of plugin.app.workspace.getLeavesOfType('markdown')) {
+    const view = leaf.view;
+    if (view instanceof MarkdownView && view.file) return view;
+  }
+  return null;
+}
+
 export function insertBadgeAtCursor(plugin: BadgePlugin, badge: BadgeDef): void {
-  const view = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+  const view = resolveMarkdownView(plugin);
   if (!view || !view.file) {
     new Notice('请先打开一篇笔记再插入徽章');
     return;
@@ -25,6 +38,7 @@ export function insertBadgeAtCursor(plugin: BadgePlugin, badge: BadgeDef): void 
   }
   // 光标落到标记行下一行行首：徽章立即渲染，继续打字不会破坏标记
   editor.setCursor({ line: nextLine, ch: 0 });
+  void plugin.app.workspace.revealLeaf(view.leaf);
   editor.focus();
 }
 
