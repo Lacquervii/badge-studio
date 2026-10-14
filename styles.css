@@ -1,1 +1,8 @@
-/* badge-studio styles, filled in Task 8/9 */
+.bs-sidebar { padding: 8px; }
+.bs-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.bs-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.bs-row:hover { background: var(--background-modifier-hover); }
+.bs-row img { flex-shrink: 0; }
+.bs-empty { color: var(--text-muted); font-size: 12px; padding: 8px; }
+.bs-temp-form { border-top: 1px solid var(--background-modifier-border); margin-top: 8px; padding-top: 4px; }
+.bs-chip { user-select: none; }
