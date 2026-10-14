@@ -13,6 +13,7 @@ export interface BadgeDef {
   styleId: string;
   tag: string;
   link: string;
+  group: string;
 }
 
 export interface BadgeSettings {

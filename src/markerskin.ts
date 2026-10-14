@@ -46,7 +46,7 @@ class RowWidget extends WidgetType {
     return row;
   }
   ignoreEvent(): boolean {
-    return true;
+    return false;
   }
 }
 
@@ -61,7 +61,7 @@ function buildDecorations(view: EditorView, plugin: BadgePlugin): DecorationSet 
   for (const run of runs) {
     const from = info[run.startLine].from;
     const to = info[run.endLine].to;
-    if (view.state.selection.ranges.some((r) => r.from < to && r.to > from)) continue;
+    if (view.state.selection.ranges.some((r) => r.from <= to && r.to >= from)) continue;
     if (inCodeBlock(view, from)) continue;
     const badges = badgesForNames(plugin, run.names);
     if (!badges) continue;

@@ -32,7 +32,7 @@ class ChipWidget extends WidgetType {
     return makeChip(this.spec);
   }
   ignoreEvent(): boolean {
-    return true;
+    return false;
   }
 }
 
@@ -45,7 +45,7 @@ function buildDecorations(view: EditorView, plugin: BadgePlugin): DecorationSet 
   while ((m = TAG_RE.exec(text)) !== null) {
     const from = m.index;
     const to = from + m[0].length;
-    if (view.state.selection.ranges.some((r) => r.from < to && r.to > from)) continue;
+    if (view.state.selection.ranges.some((r) => r.from <= to && r.to >= from)) continue;
     if (inCodeBlock(view, from)) continue;
     const spec = specForTag(plugin, m[0].slice(1));
     ranges.push({ from, to, deco: Decoration.replace({ widget: new ChipWidget(spec) }) });

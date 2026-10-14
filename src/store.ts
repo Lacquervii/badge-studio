@@ -17,6 +17,9 @@ export class BadgeStore {
     const data = await this.plugin.loadData();
     if (data && Array.isArray(data.styles) && Array.isArray(data.badges)) {
       this.settings = { ...defaultSettings(), ...(data as BadgeSettings) };
+      for (const b of this.settings.badges) {
+        if (typeof b.group !== 'string') b.group = '';
+      }
     } else {
       this.settings = defaultSettings();
       await this.save();
@@ -49,6 +52,16 @@ export class BadgeStore {
       this.settings.styles.find((s) => s.id === this.settings.defaultStyleId) ??
       this.settings.styles[0]
     );
+  }
+
+  groups(): string[] {
+    const set = new Set<string>();
+    for (const b of this.settings.badges) if (b.group !== '') set.add(b.group);
+    return [...set].sort();
+  }
+
+  styleUsage(styleId: string): number {
+    return this.settings.badges.filter((b) => b.styleId === styleId).length;
   }
 
   svgPath(badge: BadgeDef): string {

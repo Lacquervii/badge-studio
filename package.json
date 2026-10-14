@@ -8,7 +8,7 @@
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test tests/defaults.test.ts tests/svg.test.ts tests/resolve.test.ts tests/parse.test.ts"
+    "test": "node --test tests/defaults.test.ts tests/svg.test.ts tests/resolve.test.ts tests/parse.test.ts tests/io.test.ts"
   },
   "devDependencies": {
     "@codemirror/language": "^6.10.0",

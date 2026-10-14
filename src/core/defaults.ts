@@ -19,9 +19,9 @@ export function defaultSettings(): BadgeSettings {
     defaultStyleId: 's001',
     styles,
     badges: [
-      { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', tag: '', link: '' },
-      { id: '002', name: '科目-现代汉语', leftText: '科目', rightText: '现代汉语', styleId: 's004', tag: '', link: '' },
-      { id: '003', name: '单段-示例', leftText: '', rightText: '示例', styleId: 's005', tag: '', link: '' },
+      { id: '001', name: '状态-进行中', leftText: '状态', rightText: '进行中', styleId: 's001', tag: '', link: '', group: '状态' },
+      { id: '002', name: '科目-现代汉语', leftText: '科目', rightText: '现代汉语', styleId: 's004', tag: '', link: '', group: '科目' },
+      { id: '003', name: '单段-示例', leftText: '', rightText: '示例', styleId: 's005', tag: '', link: '', group: '' },
     ],
   };
 }

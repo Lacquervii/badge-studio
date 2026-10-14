@@ -20,7 +20,7 @@ function addColor(control: HTMLElement, value: string, onChange: (v: string) => 
   });
 }
 
-class StyleEditModal extends Modal {
+export class StyleEditModal extends Modal {
   plugin: BadgePlugin;
   existing: StyleDef | null;
   name = '';
@@ -67,7 +67,7 @@ class StyleEditModal extends Modal {
   }
 }
 
-class BadgeEditModal extends Modal {
+export class BadgeEditModal extends Modal {
   plugin: BadgePlugin;
   existing: BadgeDef | null;
   name = '';
@@ -76,6 +76,7 @@ class BadgeEditModal extends Modal {
   styleId: string;
   tag = '';
   link = '';
+  group = '';
 
   constructor(plugin: BadgePlugin, existing: BadgeDef | null) {
     super(plugin.app);
@@ -89,6 +90,7 @@ class BadgeEditModal extends Modal {
       this.styleId = existing.styleId;
       this.tag = existing.tag;
       this.link = existing.link;
+      this.group = existing.group;
     }
   }
 
@@ -105,11 +107,17 @@ class BadgeEditModal extends Modal {
     });
     new Setting(contentEl).setName('对应 #标签（选填）').addText((t) => t.setValue(this.tag).onChange((v) => (this.tag = v.replace(/^#/, ''))));
     new Setting(contentEl).setName('链接（选填：网址或笔记名）').addText((t) => t.setValue(this.link).onChange((v) => (this.link = v)));
+    new Setting(contentEl).setName('分组（选填）').addText((t) => {
+      t.setValue(this.group).onChange((v) => (this.group = v.trim()));
+      t.inputEl.setAttribute('list', 'bs-group-datalist');
+    });
+    const dl = contentEl.createEl('datalist', { attr: { id: 'bs-group-datalist' } });
+    for (const g of this.plugin.store.groups()) dl.createEl('option', { attr: { value: g } });
     new Setting(contentEl).addButton((b) => {
       b.setButtonText('保存').setCta();
       b.onClick(async () => {
         if (this.name.trim() === '' || this.rightText.trim() === '') return;
-        const patch = { name: this.name.trim(), leftText: this.leftText.trim(), rightText: this.rightText.trim(), styleId: this.styleId, tag: this.tag.trim(), link: this.link.trim() };
+        const patch = { name: this.name.trim(), leftText: this.leftText.trim(), rightText: this.rightText.trim(), styleId: this.styleId, tag: this.tag.trim(), link: this.link.trim(), group: this.group };
         if (this.existing) await this.plugin.store.updateBadge(this.existing.id, patch);
         else await this.plugin.store.addBadge(patch);
         this.close();
@@ -176,6 +184,7 @@ export class BadgeSettingTab extends PluginSettingTab {
     for (const badge of this.plugin.store.settings.badges) {
       const svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(this.plugin.store.buildSvg(badge));
       const row = new Setting(containerEl).setName(badge.name);
+      if (badge.group !== '') row.setDesc(`分组：${badge.group}`);
       row.controlEl.createEl('img', { attr: { src: svg, style: 'margin-right:8px', draggable: 'false' } });
       row.addButton((b) => b.setButtonText('编辑').onClick(() => new BadgeEditModal(this.plugin, badge).open()));
       row.addButton((b) => b.setButtonText('删除').setWarning().onClick(async () => {

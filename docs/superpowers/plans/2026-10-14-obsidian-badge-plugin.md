@@ -1433,3 +1433,16 @@ git tag v1.0.0
 - [ ] **Step 3: 向用户交付说明（口头/聊天）**
 
 用大白话讲：怎么开侧边栏、怎么加样式/标签、临时徽章、#标签开关在哪、素材文件夹是什么、为什么卸了插件徽章还在。
+
+---
+
+## 增量计划（2026-10-14 设计变更：混合方案，已执行）
+
+背景：纯 SVG 嵌图会被 notebook-navigator 日记卡片当作「正文第一张图」抓去当封面。与用户确认改为：日常＝标记行（`badge: 标签名`，插件渲染、非图片），需要耐用时一键「固化」成 SVG 图片行，可「还原」。
+
+- [x] Task 12a: `src/core/parse.ts`（MARKER_RE/parseBadgeMarker/findMarkerRuns/markerText）+ `tests/parse.test.ts`（15 测全过）
+- [x] Task 12b: `src/markerskin.ts` 标记渲染（阅读模式 p 段替换＋LP 多行 Range replace 成排 widget；未知标签名保留原文；代码块跳过；阅读模式带链接徽章可点击）；`src/cm.ts` 抽出共享 inCodeBlock
+- [x] Task 12c: `src/freeze.ts` 固化/还原（标记排→一行多嵌图，带链接包链接语法；纯徽章图片行→标记行）；main.ts 注册 2 命令；侧边栏加「固化本篇/还原本篇」按钮
+- [x] Task 12d: `src/ui/insert.ts` 改为插入标记行；拖拽 dataTransfer 写标记文本；测试笔记更新为标记形态；重新部署进库
+
+验收新增项（待用户执行）：标记在编辑/阅读两模式渲染成徽章；固化后变图片且可被封面抓取（预期）；还原回标记；notebook-navigator 卡片不再抓标记当封面。

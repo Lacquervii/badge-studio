@@ -1,5 +1,6 @@
 import { ItemView, Setting } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
+import { BADGE_MIME } from '../drop.ts';
 import { markerText } from '../core/parse.ts';
 import type { BadgeDef } from '../core/types.ts';
 import { freezeActiveNote, unfreezeActiveNote } from '../freeze.ts';
@@ -73,6 +74,9 @@ export class BadgeSidebarView extends ItemView {
         b.setButtonText('还原本篇').onClick(() => unfreezeActiveNote(this.plugin));
       })
       .addButton((b) => {
+        b.setButtonText('管理面板').onClick(() => void this.plugin.revealManager());
+      })
+      .addButton((b) => {
         b.setButtonText('打开设置').onClick(() => {
           (this.app as unknown as { setting?: { openTabById: (id: string) => unknown } }).setting?.openTabById(this.plugin.manifest.id);
         });
@@ -82,18 +86,30 @@ export class BadgeSidebarView extends ItemView {
   private renderList(listEl: HTMLElement): void {
     listEl.empty();
     const badges = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
-    for (const badge of badges) {
-      const row = listEl.createDiv({ cls: 'bs-row' });
-      row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
-      row.createSpan({ text: badge.name });
-      row.setAttribute('draggable', 'true');
-      row.addEventListener('dragstart', (e) => {
-        if (e.dataTransfer) {
-          e.dataTransfer.setData('text/plain', markerText(badge.name));
-          e.dataTransfer.effectAllowed = 'copy';
-        }
-      });
-      row.onClickEvent(() => insertBadgeAtCursor(this.plugin, badge));
+    const byGroup = new Map<string, BadgeDef[]>();
+    for (const b of badges) {
+      const arr = byGroup.get(b.group) ?? [];
+      arr.push(b);
+      byGroup.set(b.group, arr);
+    }
+    const order = [...byGroup.keys()].filter((g) => g !== '').sort();
+    if (byGroup.has('')) order.push('');
+    for (const g of order) {
+      if (g !== '') listEl.createDiv({ cls: 'bs-group-header', text: g });
+      for (const badge of byGroup.get(g)!) {
+        const row = listEl.createDiv({ cls: 'bs-row' });
+        row.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+        row.createSpan({ text: badge.name });
+        row.setAttribute('draggable', 'true');
+        row.addEventListener('dragstart', (e) => {
+          if (e.dataTransfer) {
+            e.dataTransfer.setData(BADGE_MIME, badge.name);
+            e.dataTransfer.setData('text/plain', markerText(badge.name));
+            e.dataTransfer.effectAllowed = 'copy';
+          }
+        });
+        row.onClickEvent(() => insertBadgeAtCursor(this.plugin, badge));
+      }
     }
     if (badges.length === 0) listEl.createDiv({ cls: 'bs-empty', text: '没有匹配的标签' });
   }
@@ -121,6 +137,7 @@ export class BadgeSidebarView extends ItemView {
           styleId,
           tag: '',
           link: '',
+          group: '',
         });
         insertBadgeAtCursor(this.plugin, badge);
       });
