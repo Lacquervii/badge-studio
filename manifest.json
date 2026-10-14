@@ -1,0 +1,9 @@
+{
+  "id": "badge-studio",
+  "name": "Badge Studio 徽章工坊",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "GitHub-style shield badges as durable SVG image embeds; two-layer style/badge library, sidebar picker, #tag skins.",
+  "author": "Farroadeta",
+  "isDesktopOnly": false
+}
