@@ -1,9 +1,10 @@
-import { ItemView, Modal, Notice, Setting, TFile, setIcon } from 'obsidian';
+import { ButtonComponent, ItemView, Menu, Modal, Notice, SearchComponent, Setting, TFile, setIcon } from 'obsidian';
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { exportJson, mergeImport } from '../core/io.ts';
 import { PRESET_LEFT_BG, PRESET_STYLES } from '../core/presets.ts';
 import { findBadgeReferences } from '../core/refs.ts';
 import type { BadgeRef } from '../core/refs.ts';
+import { markerText } from '../core/parse.ts';
 import type { BadgeDef } from '../core/types.ts';
 import type { BadgePlugin } from '../main.ts';
 import { ConfirmModal } from './confirm.ts';
@@ -12,6 +13,15 @@ import { BadgeEditModal, StyleEditModal } from './settingsTab.ts';
 export const MANAGER_VIEW_TYPE = 'badge-studio-manager';
 
 const UNGROUPED = '';
+const MOVE_MIME = 'application/x-badge-studio-move';
+
+function iconBtn(el: HTMLElement, icon: string, title: string): HTMLElement {
+  const btn = el.createEl('button', { cls: 'bs-icon-btn' });
+  setIcon(btn, icon);
+  btn.setAttribute('aria-label', title);
+  btn.title = title;
+  return btn;
+}
 
 class TextPromptModal extends Modal {
   private title: string;
@@ -46,6 +56,69 @@ class TextPromptModal extends Modal {
       t.inputEl.focus();
     });
     new Setting(contentEl).addButton((b) => b.setButtonText(this.cta).setCta().onClick(submit));
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/** 分组管理集中在弹窗里做，主界面不摆重命名/删除按钮 */
+class GroupManagerModal extends Modal {
+  plugin: BadgePlugin;
+  constructor(plugin: BadgePlugin) {
+    super(plugin.app);
+    this.plugin = plugin;
+  }
+
+  onOpen(): void {
+    this.render();
+  }
+
+  private render(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    this.setTitle('管理分组');
+
+    const groups = this.plugin.store.groups();
+    if (groups.length === 0) contentEl.createDiv({ cls: 'bs-empty', text: '还没有分组' });
+    for (const g of groups) {
+      const count = this.plugin.store.settings.badges.filter((b) => b.group === g).length;
+      const row = contentEl.createDiv({ cls: 'bs-group-row' });
+      setIcon(row.createSpan({ cls: 'bs-nav-icon' }), 'folder');
+      row.createSpan({ cls: 'grow', text: g });
+      row.createSpan({ cls: 'bs-n', text: `${count} 个` });
+      iconBtn(row, 'pencil', '重命名').addEventListener('click', () => {
+        new TextPromptModal(this.app, `重命名分组「${g}」`, '保存', g, (name) => {
+          void this.plugin.store.renameGroup(g, name).then(() => this.render());
+        }).open();
+      });
+      iconBtn(row, 'trash-2', '删除分组').addEventListener('click', () => {
+        const doDelete = (): void => void this.plugin.store.clearGroup(g).then(() => this.render());
+        if (count === 0) {
+          doDelete();
+          return;
+        }
+        new ConfirmModal(this.app, `删除分组「${g}」？组内 ${count} 个徽章会移入「未分组」，徽章本身不会被删除。`, doDelete).open();
+      });
+    }
+
+    let name = '';
+    const add = new Setting(contentEl).addText((t) => {
+      t.setPlaceholder('新分组名字');
+      t.onChange((v) => (name = v));
+    });
+    add.addButton((b) =>
+      b
+        .setButtonText('创建分组')
+        .setCta()
+        .onClick(() => {
+          if (name.trim() === '') return;
+          void this.plugin.store.addGroup(name.trim()).then(() => {
+            this.render();
+          });
+        }),
+    );
   }
 
   onClose(): void {
@@ -126,6 +199,7 @@ export class BadgeManagerView extends ItemView {
   private page: 'badges' | 'styles' = 'badges';
   private currentGroup: string | null = null;
   private search = '';
+  private density: 'grid' | 'list' = 'grid';
   private refs: Map<string, BadgeRef[]> | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: BadgePlugin) {
@@ -162,8 +236,12 @@ export class BadgeManagerView extends ItemView {
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(this.plugin.store.buildSvg(badge));
   }
 
-  private folderExists(group: string): boolean {
-    if (group === UNGROUPED) return this.plugin.store.settings.badges.some((b) => b.group === UNGROUPED);
+  private groupCount(group: string): number {
+    return this.plugin.store.settings.badges.filter((b) => b.group === group).length;
+  }
+
+  private groupExists(group: string): boolean {
+    if (group === UNGROUPED) return this.groupCount(UNGROUPED) > 0;
     return this.plugin.store.groups().includes(group);
   }
 
@@ -175,182 +253,229 @@ export class BadgeManagerView extends ItemView {
       this.renderStylesPage(root);
       return;
     }
-    this.buildToolbar(root);
-    root.createDiv({ cls: 'bs-mgr-content' });
+    this.renderHeader(root);
+    root.createDiv({ cls: 'bs-mgr-filters' });
+    root.createDiv({ cls: 'bs-mgr-main' });
+    this.renderFilters();
     this.renderContent();
   }
 
-  private buildToolbar(root: HTMLElement): void {
-    const bar = root.createDiv({ cls: 'bs-mgr-toolbar' });
+  private renderHeader(root: HTMLElement): void {
+    const header = root.createDiv({ cls: 'bs-mgr-header' });
 
-    const search = bar.createEl('input', { attr: { type: 'text', placeholder: '搜索徽章…' } });
-    search.value = this.search;
-    search.addEventListener('input', () => {
-      this.search = search.value.trim().toLowerCase();
+    const title = header.createDiv({ cls: 'bs-mgr-title' });
+    setIcon(title.createSpan({ cls: 'bs-mgr-logo' }), 'shield');
+    title.createSpan({ text: '徽章工作台' });
+
+    const search = new SearchComponent(header);
+    search.setPlaceholder('搜索徽章…');
+    search.setValue(this.search);
+    search.onChange((v) => {
+      this.search = v.trim().toLowerCase();
       this.renderContent();
     });
 
-    const btn = (text: string, onClick: () => void, cta = false): void => {
-      const b = bar.createEl('button', { text });
-      if (cta) b.addClass('mod-cta');
-      b.addEventListener('click', onClick);
-    };
-    btn('新建徽章', () => new BadgeEditModal(this.plugin, null, this.currentGroup ?? undefined).open(), true);
-    btn('新建分组', () => {
-      new TextPromptModal(this.app, '新建分组', '创建', '', (name) => {
-        void this.plugin.store.addGroup(name).then(() => {
-          this.currentGroup = name;
-          this.render();
-        });
-      }).open();
+    new ButtonComponent(header)
+      .setButtonText('新建徽章')
+      .setCta()
+      .onClick(() => new BadgeEditModal(this.plugin, null, this.currentGroup ?? undefined).open());
+
+    const more = new ButtonComponent(header).setIcon('more-horizontal').setTooltip('更多');
+    more.onClick((e) => {
+      const menu = new Menu();
+      menu.addItem((i) =>
+        i
+          .setTitle('样式库')
+          .setIcon('palette')
+          .onClick(() => {
+            this.page = 'styles';
+            this.render();
+          }),
+      );
+      menu.addItem((i) =>
+        i
+          .setTitle(this.density === 'grid' ? '切换为列表视图' : '切换为网格视图')
+          .setIcon(this.density === 'grid' ? 'list' : 'layout-grid')
+          .onClick(() => {
+            this.density = this.density === 'grid' ? 'list' : 'grid';
+            this.renderContent();
+          }),
+      );
+      menu.addItem((i) => i.setTitle('导入 JSON').setIcon('upload').onClick(() => this.pickImportFile()));
+      menu.addItem((i) => i.setTitle('导出 JSON').setIcon('download').onClick(() => this.exportAll()));
+      menu.addItem((i) =>
+        i.setTitle('刷新引用统计').setIcon('refresh-cw').onClick(() => void this.refreshRefs()),
+      );
+      menu.showAtMouseEvent(e);
     });
-    btn('样式库', () => {
-      this.page = 'styles';
-      this.render();
+  }
+
+  private renderFilters(): void {
+    const bar = this.containerEl.querySelector('.bs-mgr-filters') as HTMLElement | null;
+    if (!bar) return;
+    bar.empty();
+
+    const all = this.plugin.store.settings.badges;
+    this.renderFilterChip(bar, null, 'library', '全部徽章', all.length);
+
+    for (const g of this.plugin.store.groups()) {
+      this.renderFilterChip(bar, g, 'folder', g, this.groupCount(g));
+    }
+    const ungrouped = this.groupCount(UNGROUPED);
+    if (ungrouped > 0) this.renderFilterChip(bar, UNGROUPED, 'inbox', '未分组', ungrouped);
+
+    const add = bar.createDiv({ cls: 'bs-chip-btn is-add' });
+    setIcon(add.createSpan({ cls: 'bs-icon-inline' }), 'folder-plus');
+    add.createSpan({ text: '管理分组' });
+    add.addEventListener('click', () => new GroupManagerModal(this.plugin).open());
+  }
+
+  private renderFilterChip(
+    bar: HTMLElement,
+    group: string | null,
+    icon: string,
+    label: string,
+    count: number,
+  ): void {
+    const chip = bar.createDiv({ cls: 'bs-chip-btn' });
+    if (this.currentGroup === group) chip.addClass('is-active');
+    setIcon(chip.createSpan({ cls: 'bs-icon-inline' }), icon);
+    chip.createSpan({ text: label });
+    chip.createSpan({ cls: 'bs-n', text: `${count}` });
+    chip.addEventListener('click', () => {
+      this.currentGroup = group;
+      this.renderFilters();
+      this.renderContent();
     });
-    btn('导入 JSON', () => this.pickImportFile());
-    btn('导出 JSON', () => this.exportAll());
-    btn('刷新统计', () => void this.refreshRefs());
+    if (group !== null) this.setupDropTarget(chip, group);
+  }
+
+  private setupDropTarget(chip: HTMLElement, group: string): void {
+    chip.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types.includes(MOVE_MIME)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      chip.addClass('is-drop');
+    });
+    chip.addEventListener('dragleave', () => chip.removeClass('is-drop'));
+    chip.addEventListener('drop', (e) => {
+      e.preventDefault();
+      chip.removeClass('is-drop');
+      const id = e.dataTransfer?.getData(MOVE_MIME);
+      if (!id) return;
+      void this.plugin.store.updateBadge(id, { group });
+    });
   }
 
   private renderContent(): void {
-    const content = this.containerEl.querySelector('.bs-mgr-content') as HTMLElement | null;
-    if (!content) return;
-    content.empty();
+    const main = this.containerEl.querySelector('.bs-mgr-main') as HTMLElement | null;
+    if (!main) return;
+    main.empty();
+
     if (this.search !== '') {
-      this.renderSearchResults(content);
-      return;
-    }
-    if (this.currentGroup !== null) {
-      if (!this.folderExists(this.currentGroup)) {
-        this.currentGroup = null;
-      } else {
-        this.renderGroupView(content, this.currentGroup);
+      const list = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
+      main.createDiv({ cls: 'bs-section-title', text: `搜索「${this.search}」· ${list.length} 个` });
+      if (list.length === 0) {
+        this.renderEmpty(main, 'search', '没有匹配的徽章', '换个关键词试试');
         return;
       }
+      this.renderGrid(main, list);
+      return;
     }
-    this.renderFolderGrid(content);
-  }
 
-  private renderBreadcrumb(content: HTMLElement, group: string): void {
-    const nav = content.createDiv({ cls: 'bs-mgr-crumb' });
-    const home = nav.createEl('a', { text: '全部徽章' });
-    home.addEventListener('click', () => {
+    if (this.currentGroup !== null && !this.groupExists(this.currentGroup)) {
       this.currentGroup = null;
-      this.renderContent();
-    });
-    nav.createSpan({ text: ' ／ ' });
-    nav.createSpan({ text: group === UNGROUPED ? '未分组' : group });
-  }
-
-  private renderFolderGrid(content: HTMLElement): void {
-    const badges = this.plugin.store.settings.badges;
-    const grid = content.createDiv({ cls: 'bs-folder-grid' });
-    const folders: Array<{ group: string; list: BadgeDef[] }> = [];
-    for (const g of this.plugin.store.groups()) {
-      folders.push({ group: g, list: badges.filter((b) => b.group === g) });
+      this.renderFilters();
     }
-    const ungrouped = badges.filter((b) => b.group === UNGROUPED);
-    if (ungrouped.length > 0) folders.push({ group: UNGROUPED, list: ungrouped });
 
-    for (const f of folders) this.renderFolderCard(grid, f.group, f.list);
-    if (badges.length === 0 && folders.length === 0) {
-      content.createDiv({ cls: 'bs-empty', text: '还没有徽章，点右上角「新建徽章」开始' });
+    const all = this.plugin.store.settings.badges;
+    let list = all;
+    let title = '';
+    if (this.currentGroup === null) {
+      title = `全部徽章 · ${all.length}`;
+    } else {
+      title = `${this.currentGroup === UNGROUPED ? '未分组' : this.currentGroup} · ${this.groupCount(this.currentGroup)}`;
+      list = all.filter((b) => b.group === this.currentGroup);
     }
-  }
+    main.createDiv({ cls: 'bs-section-title', text: title });
 
-  private renderFolderCard(grid: HTMLElement, group: string, list: BadgeDef[]): void {
-    const card = grid.createDiv({ cls: 'bs-folder' });
-    const main = card.createDiv({ cls: 'bs-folder-main' });
-    const head = main.createDiv({ cls: 'bs-folder-head' });
-    const icon = head.createSpan({ cls: 'bs-folder-icon' });
-    setIcon(icon, group === UNGROUPED ? 'inbox' : 'folder');
-    head.createSpan({ cls: 'bs-folder-name', text: group === UNGROUPED ? '未分组' : group });
-    head.createSpan({ cls: 'bs-folder-count', text: `${list.length}` });
-    const previews = main.createDiv({ cls: 'bs-folder-previews' });
-    for (const badge of list.slice(0, 3)) {
-      previews.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
-    }
-    if (list.length === 0) previews.createSpan({ cls: 'bs-empty', text: '空分组' });
-    main.addEventListener('click', () => {
-      this.currentGroup = group;
-      this.renderContent();
-    });
-
-    if (group !== UNGROUPED) {
-      const actions = card.createDiv({ cls: 'bs-folder-actions' });
-      const renameBtn = actions.createEl('button', { text: '重命名' });
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        new TextPromptModal(this.app, `重命名分组「${group}」`, '保存', group, (name) => {
-          void this.plugin.store.renameGroup(group, name).then(() => this.renderContent());
-        }).open();
-      });
-      const delBtn = actions.createEl('button', { text: '删除', cls: 'mod-warning' });
-      delBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const doDelete = (): void => {
-          void this.plugin.store.clearGroup(group).then(() => {
-            if (this.currentGroup === group) this.currentGroup = null;
-            this.renderContent();
-          });
-        };
-        if (list.length === 0) {
-          doDelete();
-        } else {
-          new ConfirmModal(this.app, `删除分组「${group}」？组内 ${list.length} 个徽章会移入「未分组」，不会被删除。`, doDelete).open();
-        }
-      });
-    }
-  }
-
-  private renderGroupView(content: HTMLElement, group: string): void {
-    this.renderBreadcrumb(content, group);
-    const list = this.plugin.store.settings.badges.filter((b) => b.group === group);
-    const grid = content.createDiv({ cls: 'bs-mgr-grid' });
-    for (const badge of list) this.renderCard(grid, badge, false);
     if (list.length === 0) {
-      content.createDiv({ cls: 'bs-empty', text: '这个分组还没有徽章，点「新建徽章」会自动归入本组' });
+      const group = this.currentGroup;
+      this.renderEmpty(
+        main,
+        group === null ? 'shield' : group === UNGROUPED ? 'inbox' : 'folder',
+        group === null ? '还没有徽章' : '这个分组还没有徽章',
+        '点右上角「新建徽章」，会自动归入当前分组',
+      );
+      return;
     }
+    this.renderGrid(main, list);
   }
 
-  private renderSearchResults(content: HTMLElement): void {
-    const list = this.plugin.store.settings.badges.filter((b) => b.name.toLowerCase().includes(this.search));
-    content.createDiv({ cls: 'bs-empty', text: `搜索到 ${list.length} 个徽章` });
-    const grid = content.createDiv({ cls: 'bs-mgr-grid' });
-    for (const badge of list) this.renderCard(grid, badge, true);
-    if (list.length === 0) content.createDiv({ cls: 'bs-empty', text: '没有匹配的徽章' });
+  private renderEmpty(main: HTMLElement, icon: string, title: string, desc: string): void {
+    const box = main.createDiv({ cls: 'bs-empty-state' });
+    const iconEl = box.createDiv({ cls: 'bs-empty-icon' });
+    setIcon(iconEl, icon);
+    box.createDiv({ cls: 'bs-empty-title', text: title });
+    box.createDiv({ cls: 'bs-empty-desc', text: desc });
   }
 
-  private renderCard(grid: HTMLElement, badge: BadgeDef, showGroup: boolean): void {
-    const card = grid.createDiv({ cls: 'bs-mgr-card' });
+  private renderGrid(main: HTMLElement, badges: BadgeDef[]): void {
+    const grid = main.createDiv({ cls: `bs-grid${this.density === 'list' ? ' is-list' : ''}` });
+    for (const badge of badges) this.renderCard(grid, badge);
+  }
 
-    const head = card.createDiv({ cls: 'bs-mgr-card-head' });
-    head.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
-    head.createSpan({ cls: 'bs-mgr-card-name', text: badge.name });
+  private renderCard(grid: HTMLElement, badge: BadgeDef): void {
+    const card = grid.createDiv({ cls: 'bs-card' });
 
-    if (showGroup) {
-      card.createDiv({ cls: 'bs-mgr-card-meta', text: badge.group === UNGROUPED ? '未分组' : badge.group });
+    const canvas = card.createDiv({ cls: 'bs-card-canvas' });
+    canvas.createEl('img', { attr: { src: this.dataUri(badge), draggable: 'false' } });
+
+    card.createDiv({ cls: 'bs-card-name', text: badge.name });
+
+    const meta = card.createDiv({ cls: 'bs-card-meta' });
+    if (this.density === 'list' || this.search !== '') {
+      meta.createSpan({ text: badge.group === UNGROUPED ? '未分组' : badge.group });
     }
-
-    const refsEl = card.createDiv({ cls: 'bs-mgr-card-refs' });
+    const refsEl = meta.createSpan({ cls: 'bs-card-refs' });
     if (this.refs === null) {
-      refsEl.setText('引用统计中…');
+      refsEl.setText('统计中…');
     } else {
       const refs = this.refs.get(badge.name) ?? [];
-      const total = refs.reduce((n, r) => n + r.count, 0);
-      refsEl.setText(refs.length === 0 ? '未被引用' : `${refs.length} 篇笔记引用（共 ${total} 处）`);
+      refsEl.setText(refs.length === 0 ? '未被引用' : `${refs.length} 篇引用`);
       if (refs.length > 0) {
         refsEl.addClass('is-clickable');
-        refsEl.addEventListener('click', () => new RefsModal(this.app, badge.name, refs).open());
+        refsEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          new RefsModal(this.app, badge.name, refs).open();
+        });
       }
     }
 
-    const actions = card.createDiv({ cls: 'bs-mgr-card-actions' });
-    const editBtn = actions.createEl('button', { text: '编辑' });
-    editBtn.addEventListener('click', () => new BadgeEditModal(this.plugin, badge).open());
-    const delBtn = actions.createEl('button', { text: '删除', cls: 'mod-warning' });
-    delBtn.addEventListener('click', () => this.deleteBadge(badge));
+    card.addEventListener('click', () => new BadgeEditModal(this.plugin, badge).open());
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.openCardMenu(e, badge);
+    });
+    card.setAttribute('draggable', 'true');
+    card.addEventListener('dragstart', (e) => {
+      if (!e.dataTransfer) return;
+      e.dataTransfer.setData(MOVE_MIME, badge.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+  }
+
+  private openCardMenu(e: MouseEvent, badge: BadgeDef): void {
+    const menu = new Menu();
+    menu.addItem((i) => i.setTitle('编辑').setIcon('pencil').onClick(() => new BadgeEditModal(this.plugin, badge).open()));
+    menu.addItem((i) =>
+      i.setTitle('复制标记').setIcon('copy').onClick(() => {
+        void navigator.clipboard.writeText(markerText(badge.name));
+        new Notice(`已复制：${markerText(badge.name)}`);
+      }),
+    );
+    menu.addItem((i) => i.setTitle('删除').setIcon('trash-2').onClick(() => this.deleteBadge(badge)));
+    menu.showAtMouseEvent(e);
   }
 
   private deleteBadge(badge: BadgeDef): void {
@@ -368,38 +493,44 @@ export class BadgeManagerView extends ItemView {
   }
 
   private renderStylesPage(root: HTMLElement): void {
-    const bar = root.createDiv({ cls: 'bs-mgr-toolbar' });
-    const back = bar.createEl('button', { text: '← 返回徽章库' });
-    back.addEventListener('click', () => {
-      this.page = 'badges';
-      this.render();
-    });
-    const addBtn = bar.createEl('button', { text: '新建样式', cls: 'mod-cta' });
-    addBtn.addEventListener('click', () => new StyleEditModal(this.plugin, null).open());
-    const presetBtn = bar.createEl('button', { text: '预设配色' });
-    presetBtn.addEventListener('click', () => new PresetModal(this.plugin).open());
-
-    const content = root.createDiv({ cls: 'bs-mgr-content' });
-    content.createEl('h3', { text: `样式库（${this.plugin.store.settings.styles.length}）` });
-    content.createDiv({ cls: 'bs-empty', text: '改动样式后，使用它的徽章会全部自动重画。' });
-    for (const style of this.plugin.store.settings.styles) {
-      const row = content.createDiv({ cls: 'bs-mgr-style-row' });
-      row.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
-      row.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
-      row.createSpan({ text: style.name });
-      row.createSpan({ cls: 'bs-mgr-card-meta grow', text: `${style.leftBg} ／ ${style.rightBg} · 被 ${this.plugin.store.styleUsage(style.id)} 个徽章使用` });
-      const editBtn = row.createEl('button', { text: '编辑' });
-      editBtn.addEventListener('click', () => new StyleEditModal(this.plugin, style).open());
-      const delBtn = row.createEl('button', { text: '删除', cls: 'mod-warning' });
-      delBtn.addEventListener('click', () => {
-        const usage = this.plugin.store.styleUsage(style.id);
-        const doDelete = (): void => void this.plugin.store.deleteStyle(style.id);
-        if (usage === 0) {
-          doDelete();
-        } else {
-          new ConfirmModal(this.app, `样式「${style.name}」正被 ${usage} 个徽章使用，删除后这些徽章会改用默认样式。仍要删除吗？`, doDelete).open();
-        }
+    const header = root.createDiv({ cls: 'bs-mgr-header' });
+    new ButtonComponent(header)
+      .setIcon('arrow-left')
+      .setTooltip('返回徽章库')
+      .onClick(() => {
+        this.page = 'badges';
+        this.render();
       });
+    const title = header.createDiv({ cls: 'bs-mgr-title' });
+    setIcon(title.createSpan({ cls: 'bs-mgr-logo' }), 'palette');
+    title.createSpan({ text: '样式库' });
+    new ButtonComponent(header).setButtonText('预设配色').onClick(() => new PresetModal(this.plugin).open());
+    new ButtonComponent(header)
+      .setButtonText('新建样式')
+      .setCta()
+      .onClick(() => new StyleEditModal(this.plugin, null).open());
+
+    const main = root.createDiv({ cls: 'bs-mgr-main' });
+    main.createEl('h3', { text: `样式库（${this.plugin.store.settings.styles.length}）` });
+    main.createDiv({ cls: 'bs-empty', text: '改动样式后，使用它的徽章会全部自动重画；删除使用中的样式会先提示。' });
+    for (const style of this.plugin.store.settings.styles) {
+      const row = new Setting(main)
+        .setName(style.name)
+        .setDesc(`左 ${style.leftBg} ／ 右 ${style.rightBg} · 被 ${this.plugin.store.styleUsage(style.id)} 个徽章使用`);
+      row.controlEl.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.leftBg}` } });
+      row.controlEl.createSpan({ cls: 'bs-swatch', attr: { style: `background:${style.rightBg}` } });
+      row.addButton((b) => b.setButtonText('编辑').onClick(() => new StyleEditModal(this.plugin, style).open()));
+      row.addButton((b) =>
+        b.setButtonText('删除').setWarning().onClick(() => {
+          const usage = this.plugin.store.styleUsage(style.id);
+          const doDelete = (): void => void this.plugin.store.deleteStyle(style.id);
+          if (usage === 0) {
+            doDelete();
+            return;
+          }
+          new ConfirmModal(this.app, `样式「${style.name}」正被 ${usage} 个徽章使用，删除后这些徽章会改用默认样式。仍要删除吗？`, doDelete).open();
+        }),
+      );
     }
   }
 
