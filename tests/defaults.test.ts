@@ -2,14 +2,39 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultSettings, nextNumericId } from '../src/core/defaults.ts';
 
-test('默认设置：7 个样式，不带任何徽章与分组', () => {
+test('默认设置：7 个样式，自带三枚状态徽章', () => {
   const s = defaultSettings();
   assert.equal(s.styles.length, 7);
-  assert.equal(s.badges.length, 0);
-  assert.equal(s.groups.length, 0);
+  assert.equal(s.badges.length, 3);
+  assert.deepEqual(s.groups, ['状态']);
   assert.equal(s.assetsFolder, '徽章素材');
   assert.equal(s.defaultStyleId, 's001');
   assert.equal(s.sidebarView, 'list');
+});
+
+test('默认设置：三枚状态徽章（未开始 / 进行中 / 已完成）', () => {
+  const s = defaultSettings();
+  assert.deepEqual(
+    s.badges.map((b) => b.name),
+    ['状态-未开始', '状态-进行中', '状态-已完成'],
+  );
+  assert.deepEqual(
+    s.badges.map((b) => b.rightText),
+    ['未开始', '进行中', '已完成'],
+  );
+  for (const b of s.badges) assert.equal(b.leftText, '状态');
+});
+
+test('默认设置：三枚徽章各带一枚图标，配色分别是灰 / 黄 / 绿', () => {
+  const s = defaultSettings();
+  assert.deepEqual(
+    s.badges.map((b) => b.logoLeft),
+    ['circle', 'clock', 'check-circle'],
+  );
+  assert.deepEqual(
+    s.badges.map((b) => b.rightBg),
+    ['#555555', '#ffd400', '#4caf50'],
+  );
 });
 
 test('默认设置：样式左块统一深灰，右块色值符合规格', () => {

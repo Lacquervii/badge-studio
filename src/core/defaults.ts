@@ -10,6 +10,11 @@ export const FALLBACK_PALETTE: Palette = {
   rightTextColor: '',
 };
 
+function paletteOfStyle(styles: StyleDef[], styleId: string): Palette {
+  const s = styles.find((x) => x.id === styleId) ?? styles[0];
+  return { leftBg: s.leftBg, rightBg: s.rightBg, leftTextColor: s.leftTextColor, rightTextColor: s.rightTextColor };
+}
+
 export function defaultSettings(): BadgeSettings {
   const styles: StyleDef[] = [
     { id: 's001', name: '黄', rightBg: '#ffd400' },
@@ -25,11 +30,14 @@ export function defaultSettings(): BadgeSettings {
     assetsFolder: '徽章素材',
     defaultStyleId: 's001',
     sidebarView: 'list',
-    // 新装时留空：徽章由用户自己建，样式库只提供配色模板
-    groups: [],
+    groups: ['状态'],
     refsPreview: true,
     styles,
-    badges: [],
+    badges: [
+      { id: '001', name: '状态-未开始', leftText: '状态', rightText: '未开始', link: '', group: '状态', logoLeft: 'circle', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's007') },
+      { id: '002', name: '状态-进行中', leftText: '状态', rightText: '进行中', link: '', group: '状态', logoLeft: 'clock', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's001') },
+      { id: '003', name: '状态-已完成', leftText: '状态', rightText: '已完成', link: '', group: '状态', logoLeft: 'check-circle', logoLeftInner: '', logoRightInner: '', logoRight: '', ...paletteOfStyle(styles, 's002') },
+    ],
   };
 }
 

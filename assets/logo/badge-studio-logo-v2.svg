@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Badge Studio 徽章工坊">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f2d3d"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#475569"/>
+      <stop offset="1" stop-color="#2b3644"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-60%" width="160%" height="240%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <clipPath id="pill">
+      <rect x="18" y="50" width="92" height="28" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)">
+    <g clip-path="url(#pill)">
+      <rect x="18" y="50" width="42" height="28" fill="url(#left)"/>
+      <rect x="60" y="50" width="50" height="28" fill="url(#right)"/>
+      <rect x="18" y="50" width="92" height="14" fill="url(#sheen)"/>
+    </g>
+  </g>
+
+  <rect x="30" y="61.5" width="22" height="5" rx="2.5" fill="#e2e8f0" opacity="0.9"/>
+
+  <path d="M77 64.5 L82 69.5 L93 58.5" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="100" cy="28" r="3" fill="#38bdf8" opacity="0.9"/>
+  <circle cx="110" cy="20" r="1.8" fill="#38bdf8" opacity="0.5"/>
+</svg>

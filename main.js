@@ -556,6 +556,11 @@ var FALLBACK_PALETTE = {
   leftTextColor: "",
   rightTextColor: ""
 };
+function paletteOfStyle(styles, styleId) {
+  var _a;
+  const s = (_a = styles.find((x) => x.id === styleId)) != null ? _a : styles[0];
+  return { leftBg: s.leftBg, rightBg: s.rightBg, leftTextColor: s.leftTextColor, rightTextColor: s.rightTextColor };
+}
 function defaultSettings() {
   const styles = [
     { id: "s001", name: "\u9EC4", rightBg: "#ffd400" },
@@ -570,11 +575,14 @@ function defaultSettings() {
     assetsFolder: "\u5FBD\u7AE0\u7D20\u6750",
     defaultStyleId: "s001",
     sidebarView: "list",
-    // 新装时留空：徽章由用户自己建，样式库只提供配色模板
-    groups: [],
+    groups: ["\u72B6\u6001"],
     refsPreview: true,
     styles,
-    badges: []
+    badges: [
+      { id: "001", name: "\u72B6\u6001-\u672A\u5F00\u59CB", leftText: "\u72B6\u6001", rightText: "\u672A\u5F00\u59CB", link: "", group: "\u72B6\u6001", logoLeft: "circle", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s007") },
+      { id: "002", name: "\u72B6\u6001-\u8FDB\u884C\u4E2D", leftText: "\u72B6\u6001", rightText: "\u8FDB\u884C\u4E2D", link: "", group: "\u72B6\u6001", logoLeft: "clock", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s001") },
+      { id: "003", name: "\u72B6\u6001-\u5DF2\u5B8C\u6210", leftText: "\u72B6\u6001", rightText: "\u5DF2\u5B8C\u6210", link: "", group: "\u72B6\u6001", logoLeft: "check-circle", logoLeftInner: "", logoRightInner: "", logoRight: "", ...paletteOfStyle(styles, "s002") }
+    ]
   };
 }
 function nextNumericId(ids, withS) {
