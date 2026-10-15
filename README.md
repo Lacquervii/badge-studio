@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/logo-512.png" width="120" alt="Badge Studio 徽章工坊">
+  <img src="assets/poster/badge-studio-cover.jpeg" alt="Badge Studio 徽章工坊">
 </p>
 
 <h1 align="center">Badge Studio 徽章工坊</h1>
